@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src *; img-src 'self' data: https:;"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://export.arxiv.org https://api.openai.com https://api.anthropic.com https://api.github.com https://corsproxy.io https://api.allorigins.win; img-src 'self' data:;"/>
 <title>arXiv Browser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
@@ -616,14 +616,6 @@ const PROXIES=[
   u=>`https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
 ];
 async function fetchArxiv(url){
-  // In Electron: use main process (no CORS)
-  if(window.electronAPI && window.electronAPI.fetchURL){
-    try{
-      const res=await window.electronAPI.fetchURL(url);
-      if(res.ok && res.text.includes('<feed'))return res.text;
-    }catch(_){}
-  }
-  // Fallback: CORS proxies (browser mode)
   for(const proxy of PROXIES){
     try{
       const r=await fetch(proxy(url),{signal:AbortSignal.timeout(16000)});
@@ -743,15 +735,14 @@ async function nativeSavePDF(url, arxivId){
   const filename=`${arxivId.replace('/','_')}.pdf`;
   try{
     toast('Downloading PDF\u2026',8000);
+    const r=await fetch(url);
+    if(!r.ok)throw new Error(`HTTP ${r.status}`);
+    const buf=await r.arrayBuffer();
     if(window.electronAPI){
-      const {ok,path,error}=await window.electronAPI.savePDF(url,filename);
+      const {ok,path}=await window.electronAPI.savePDF(buf,filename);
       if(ok)toast(`\u2713 Saved: ${path}`);
-      else if(error)toast(`PDF error: ${error}`);
       else toast('Save cancelled');
     }else{
-      const r=await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`);
-      if(!r.ok)throw new Error(`HTTP ${r.status}`);
-      const buf=await r.arrayBuffer();
       const blob=new Blob([buf],{type:'application/pdf'});
       const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;a.click();
       toast('\u2713 PDF downloaded');
