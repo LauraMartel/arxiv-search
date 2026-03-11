@@ -1,5 +1,6 @@
-const { app, BrowserWindow, shell, ipcMain, Menu } = require('electron')
+const { app, BrowserWindow, shell, ipcMain, Menu, dialog, net } = require('electron')
 const path = require('path')
+const fs = require('fs')
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -19,10 +20,8 @@ function createWindow() {
   })
 
   win.loadFile('index.html')
-
   win.once('ready-to-show', () => win.show())
 
-  // Open external links in the system browser
   win.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url)
     return { action: 'deny' }
@@ -31,7 +30,6 @@ function createWindow() {
     if (!url.startsWith('file://')) { e.preventDefault(); shell.openExternal(url) }
   })
 
-  // Menu
   const menu = Menu.buildFromTemplate([
     {
       label: 'arXiv Browser',
@@ -76,16 +74,31 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit() })
 
-// IPC: save PDF to disk via dialog
-const { dialog } = require('electron')
-const fs = require('fs')
-
-ipcMain.handle('save-pdf', async (event, { buffer, filename }) => {
+// IPC: save PDF — download in main process (no CORS) then save via dialog
+ipcMain.handle('save-pdf', async (event, { url, filename }) => {
   const { filePath } = await dialog.showSaveDialog({
     defaultPath: filename,
     filters: [{ name: 'PDF', extensions: ['pdf'] }],
   })
   if (!filePath) return { ok: false }
-  fs.writeFileSync(filePath, Buffer.from(buffer))
-  return { ok: true, path: filePath }
+
+  return new Promise((resolve) => {
+    const request = net.request({ url, method: 'GET' })
+    request.setHeader('User-Agent', 'Mozilla/5.0 (compatible; arXiv-Browser/2.0)')
+    const chunks = []
+    request.on('response', (response) => {
+      response.on('data', (chunk) => chunks.push(chunk))
+      response.on('end', () => {
+        try {
+          fs.writeFileSync(filePath, Buffer.concat(chunks))
+          resolve({ ok: true, path: filePath })
+        } catch (e) {
+          resolve({ ok: false, error: e.message })
+        }
+      })
+      response.on('error', (e) => resolve({ ok: false, error: e.message }))
+    })
+    request.on('error', (e) => resolve({ ok: false, error: e.message }))
+    request.end()
+  })
 })

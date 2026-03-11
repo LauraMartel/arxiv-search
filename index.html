@@ -734,18 +734,19 @@ function makeCard(p,i){
 async function nativeSavePDF(url, arxivId){
   const filename=`${arxivId.replace('/','_')}.pdf`;
   try{
-    toast('Downloading PDF\u2026',8000);
-    const r=await fetch(url);
-    if(!r.ok)throw new Error(`HTTP ${r.status}`);
-    const buf=await r.arrayBuffer();
+    toast('Downloading PDF…',8000);
     if(window.electronAPI){
-      const {ok,path}=await window.electronAPI.savePDF(buf,filename);
-      if(ok)toast(`\u2713 Saved: ${path}`);
+      const {ok,path,error}=await window.electronAPI.savePDF(url,filename);
+      if(ok)toast(`✓ Saved: ${path}`);
+      else if(error)toast(`PDF error: ${error}`);
       else toast('Save cancelled');
     }else{
+      const r=await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`);
+      if(!r.ok)throw new Error(`HTTP ${r.status}`);
+      const buf=await r.arrayBuffer();
       const blob=new Blob([buf],{type:'application/pdf'});
       const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;a.click();
-      toast('\u2713 PDF downloaded');
+      toast('✓ PDF downloaded');
     }
   }catch(e){toast(`PDF error: ${e.message}`)}
 }
