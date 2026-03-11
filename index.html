@@ -241,6 +241,7 @@ body{background:var(--bg);color:var(--ink);font-family:'IBM Plex Mono',monospace
 <nav class="tabs">
   <button class="tab on" onclick="setTab('search')">🔍 Search</button>
   <button class="tab" onclick="setTab('library')">📚 Library <span class="badge" id="lib-badge">0</span></button>
+  <button class="tab" onclick="setTab('trends')">📈 Trends</button>
   <button class="tab" onclick="setTab('ai')">🤖 AI <span id="ai-lock">🔒</span></button>
   <button class="tab" onclick="setTab('settings')">⚙ Settings</button>
 </nav>
@@ -323,6 +324,31 @@ body{background:var(--bg);color:var(--ink);font-family:'IBM Plex Mono',monospace
 </div>
 
 <!-- ══ AI ══ -->
+
+<div id="tab-trends" style="display:none">
+<div class="hdr">
+  <div class="hdr-top">
+    <div>
+      <div class="logo">arXiv <span>Trends</span></div>
+      <div class="logo-sub">What is the community working on right now?</div>
+    </div>
+    <div style="display:flex;gap:.5rem;align-items:center">
+      <select id="trend-cat" style="height:36px;background:var(--sur);border:1px solid var(--bdr2);color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:.72rem;padding:0 .6rem;outline:none"></select>
+      <select id="trend-window" style="height:36px;background:var(--sur);border:1px solid var(--bdr2);color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:.72rem;padding:0 .6rem;outline:none">
+        <option value="7">Last 7 days</option>
+        <option value="14">Last 14 days</option>
+        <option value="30">Last 30 days</option>
+      </select>
+      <button class="sbtn" id="trend-btn" onclick="doTrends()">Analyse</button>
+    </div>
+  </div>
+</div>
+<div style="padding:1.5rem;max-width:900px;margin:0 auto">
+  <div id="trend-status" style="color:var(--ink3);font-size:.75rem;margin-bottom:1rem;min-height:1.2rem"></div>
+  <div id="trend-results"></div>
+</div>
+</div>
+
 <div id="tab-ai" style="display:none">
   <div class="ai-page">
     <div class="ai-hdr">
@@ -547,7 +573,7 @@ function updateBadge(){document.getElementById('lib-badge').textContent=library.
 updateBadge();
 
 // ═══ TABS ════════════════════════════════════════════════════
-const TABS=['search','library','ai','settings'];
+const TABS=['search','library','trends','ai','settings'];
 function setTab(t){
   TABS.forEach(id=>{
     document.getElementById('tab-'+id).style.display=id===t?'':'none';
@@ -1114,6 +1140,223 @@ function appendMsg(role,txt,thinking=false){
   win.appendChild(div);win.scrollTop=win.scrollHeight;return div;
 }
 function clearChat(){document.getElementById('chat-win').innerHTML='<div class="chat-empty"><p>Try: <em>"What are the main themes?"</em></p></div>';chatHistory=[]}
+
+
+// ═══ TRENDS ═══════════════════════════════════════════════════
+
+// Physics & condensed matter focused categories
+const TREND_CATS = [
+  ['cond-mat','Condensed Matter (all)'],
+  ['cond-mat.supr-con','Superconductivity'],
+  ['cond-mat.str-el','Strongly Correlated'],
+  ['cond-mat.mes-hall','Mesoscale & Nanoscale'],
+  ['cond-mat.mtrl-sci','Materials Science'],
+  ['cond-mat.quant-gas','Quantum Gases'],
+  ['physics.app-ph','Applied Physics'],
+  ['quant-ph','Quantum Physics'],
+  ['hep-th','High Energy Theory'],
+  ['astro-ph','Astrophysics'],
+  ['math-ph','Mathematical Physics'],
+  ['cs.LG','Machine Learning'],
+  ['cs.AI','Artificial Intelligence'],
+];
+
+// Populate trend category selector
+(function(){
+  const sel = document.getElementById('trend-cat');
+  TREND_CATS.forEach(([val,label])=>{
+    const o = document.createElement('option');
+    o.value = val; o.textContent = label;
+    sel.appendChild(o);
+  });
+})();
+
+// Physics stopwords — common words that are not meaningful trends
+const STOPWORDS = new Set([
+  'the','and','for','with','from','that','this','are','has','have','been','into',
+  'its','can','two','new','via','non','based','using','model','models','quantum',
+  'study','results','show','shows','large','high','low','first','also','here',
+  'type','induced','driven','order','effect','effects','field','fields','state',
+  'states','system','systems','data','analysis','method','methods','approach',
+  'paper','work','our','their','these','which','both','well','present','over',
+  'under','out','all','one','than','not','but','more','such','between','within',
+  'across','regime','regime','limit','compared','measured','observed','found',
+  'further','show','shown','strongly','recently','however','while','where',
+]);
+
+// Extract meaningful 1-2 word phrases from text
+function extractPhrases(text){
+  const words = text.toLowerCase()
+    .replace(/[^a-z0-9\s\-]/g,' ')
+    .split(/\s+/)
+    .filter(w => w.length > 3 && !STOPWORDS.has(w) && !/^\d+$/.test(w));
+  
+  const phrases = [];
+  // Single words
+  words.forEach(w => phrases.push(w));
+  // Bigrams
+  for(let i=0;i<words.length-1;i++){
+    if(!STOPWORDS.has(words[i]) && !STOPWORDS.has(words[i+1])){
+      phrases.push(words[i]+' '+words[i+1]);
+    }
+  }
+  return phrases;
+}
+
+function dateToArxivTS(d, end=false){
+  const y=d.getFullYear();
+  const mo=String(d.getMonth()+1).padStart(2,'0');
+  const day=String(d.getDate()).padStart(2,'0');
+  return `${y}${mo}${day}${end?'235959':'000000'}`;
+}
+
+async function fetchTrendBatch(cat, fromTS, toTS, start=0, maxResults=200){
+  const q = `cat:${cat} AND submittedDate:[${fromTS} TO ${toTS}]`;
+  const params = new URLSearchParams({search_query:q, start, max_results:maxResults, sortBy:'submittedDate', sortOrder:'descending'});
+  const url = `https://export.arxiv.org/api/query?${params}`;
+  const res = await fetchArxiv(url);
+  return res;
+}
+
+function countFrequency(texts){
+  const freq = {};
+  texts.forEach(text => {
+    const phrases = extractPhrases(text);
+    const seen = new Set();
+    phrases.forEach(p => {
+      if(!seen.has(p)){
+        freq[p] = (freq[p]||0) + 1;
+        seen.add(p);
+      }
+    });
+  });
+  return freq;
+}
+
+async function doTrends(){
+  const cat = document.getElementById('trend-cat').value;
+  const days = parseInt(document.getElementById('trend-window').value);
+  const btn = document.getElementById('trend-btn');
+  const status = document.getElementById('trend-status');
+  const results = document.getElementById('trend-results');
+  
+  btn.disabled = true;
+  btn.textContent = 'Analysing…';
+  results.innerHTML = '';
+
+  try {
+    const now = new Date();
+    
+    // Recent window
+    const recentFrom = new Date(now);
+    recentFrom.setDate(recentFrom.getDate() - days);
+    
+    // Baseline window (3x as long, ending where recent starts)
+    const baselineFrom = new Date(recentFrom);
+    baselineFrom.setDate(baselineFrom.getDate() - (days * 3));
+    const baselineTo = new Date(recentFrom);
+    baselineTo.setDate(baselineTo.getDate() - 1);
+
+    const recentFromTS = dateToArxivTS(recentFrom);
+    const recentToTS = dateToArxivTS(now, true);
+    const baselineFromTS = dateToArxivTS(baselineFrom);
+    const baselineToTS = dateToArxivTS(baselineTo, true);
+
+    status.textContent = `Fetching recent papers (last ${days} days)…`;
+    const recentXML = await fetchTrendBatch(cat, recentFromTS, recentToTS, 0, 200);
+    const recentPapers = parseXML(recentXML);
+    
+    status.textContent = `Fetching baseline papers (previous ${days*3} days)…`;
+    const baselineXML = await fetchTrendBatch(cat, baselineFromTS, baselineToTS, 0, 200);
+    const baselinePapers = parseXML(baselineXML);
+
+    if(!recentPapers.length){
+      results.innerHTML = '<div class="blank"><div class="blank-i">◌</div><div class="blank-t">No papers found</div><div class="blank-s">Try a different category or wider window.</div></div>';
+      return;
+    }
+
+    status.textContent = `Analysing ${recentPapers.length} recent + ${baselinePapers.length} baseline papers…`;
+
+    // Count frequencies
+    const recentTexts = recentPapers.map(p => p.title + ' ' + p.summary);
+    const baselineTexts = baselinePapers.map(p => p.title + ' ' + p.summary);
+    
+    const recentFreq = countFrequency(recentTexts);
+    const baselineFreq = countFrequency(baselineTexts);
+
+    // Calculate trend score: compare recent rate vs baseline rate
+    const recentTotal = recentPapers.length || 1;
+    const baselineTotal = (baselinePapers.length || 1) * (1/3); // normalize to same window
+    
+    const trends = [];
+    Object.entries(recentFreq).forEach(([phrase, rCount]) => {
+      if(rCount < 3) return; // ignore rare terms
+      if(phrase.length < 5) return; // ignore very short terms
+      const bCount = (baselineFreq[phrase] || 0) / 3; // normalize baseline
+      const recentRate = rCount / recentTotal;
+      const baselineRate = bCount / baselineTotal;
+      const ratio = baselineRate > 0.001 ? recentRate / baselineRate : recentRate * 50;
+      const score = ratio * Math.log(rCount + 1); // weight by volume too
+      trends.push({ phrase, rCount, bCount: Math.round(bCount), ratio: Math.round(ratio*10)/10, score });
+    });
+
+    // Also find brand new terms (not in baseline at all)
+    const newTerms = trends.filter(t => t.bCount === 0 && t.rCount >= 3);
+    
+    // Sort by score
+    trends.sort((a,b) => b.score - a.score);
+    const top = trends.slice(0, 30);
+
+    status.textContent = `Found trends in ${recentPapers.length} papers from the last ${days} days`;
+
+    // Render
+    let html = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:2rem">
+        <div style="background:var(--sur);border:1px solid var(--bdr);padding:1.2rem">
+          <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);margin-bottom:.8rem">📈 Rising Topics</div>
+          ${top.filter(t=>t.bCount>0).slice(0,15).map((t,i) => `
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid var(--bdr);cursor:pointer"
+                 onclick="searchTrend('${t.phrase.replace(/'/g,"\'")}')">
+              <div style="font-size:.75rem;color:var(--ink)">${t.phrase}</div>
+              <div style="display:flex;align-items:center;gap:.6rem;flex-shrink:0">
+                <div style="font-size:.62rem;color:var(--ink3)">${t.rCount} papers</div>
+                <div style="font-size:.62rem;background:${t.ratio>3?'var(--acc)':t.ratio>1.5?'var(--grn)':'var(--acc2)'};color:#fff;padding:.15rem .4rem">
+                  ×${t.ratio}
+                </div>
+              </div>
+            </div>`).join('')}
+        </div>
+        <div style="background:var(--sur);border:1px solid var(--bdr);padding:1.2rem">
+          <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);margin-bottom:.8rem">🔥 Breakout Terms <span style="font-size:.55rem">(new this period)</span></div>
+          ${newTerms.sort((a,b)=>b.rCount-a.rCount).slice(0,15).map(t => `
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid var(--bdr);cursor:pointer"
+                 onclick="searchTrend('${t.phrase.replace(/'/g,"\'")}')">
+              <div style="font-size:.75rem;color:var(--ink)">${t.phrase}</div>
+              <div style="font-size:.62rem;color:var(--ink3)">${t.rCount} papers</div>
+            </div>`).join('')}
+        </div>
+      </div>
+      <div style="font-size:.62rem;color:var(--ink3);text-align:center">
+        Click any term to search for it in arXiv · Based on ${recentPapers.length} papers · 
+        Compared to ${baselinePapers.length} papers from the previous ${days*3} days
+      </div>`;
+
+    results.innerHTML = html;
+
+  } catch(e) {
+    status.textContent = '';
+    results.innerHTML = `<div class="blank"><div class="blank-i">⚠</div><div class="blank-t">Analysis failed</div><div class="blank-s">${e.message}</div></div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Analyse';
+  }
+}
+
+function searchTrend(phrase){
+  document.getElementById('kw-input').value = phrase;
+  setTab('search');
+  setTimeout(doSearch, 200);
+}
 
 // ═══ INIT ════════════════════════════════════════════════════
 (function(){
