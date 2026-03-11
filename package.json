@@ -5,47 +5,10 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "build:win":   "electron-builder --win",
-    "build:mac":   "electron-builder --mac",
-    "build:linux": "electron-builder --linux",
-    "build:all":   "electron-builder --win --mac --linux"
+    "build:win": "electron-packager . \"arXiv Browser\" --platform=win32 --arch=x64 --icon=assets/icon256.png --out=dist --overwrite --asar"
   },
   "devDependencies": {
     "electron": "^30.0.0",
-    "electron-builder": "^24.13.3"
-  },
-  "build": {
-    "appId": "io.arxiv.browser",
-    "productName": "arXiv Browser",
-    "copyright": "Open Source",
-    "files": ["main.js", "index.html", "preload.js", "assets/**"],
-    "win": {
-      "target": [{ "target": "nsis", "arch": ["x64"] }],
-      "icon": "assets/icon.ico"
-    },
-    "mac": {
-      "target": [{ "target": "dmg", "arch": ["x64", "arm64"] }],
-      "icon": "assets/icon.icns",
-      "category": "public.app-category.reference"
-    },
-    "linux": {
-      "target": ["AppImage"],
-      "icon": "assets/icon.png",
-      "category": "Science"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "installerIcon": "assets/icon.ico",
-      "installerHeaderIcon": "assets/icon.ico"
-    },
-    "dmg": {
-      "contents": [
-        { "x": 130, "y": 220 },
-        { "x": 410, "y": 220, "type": "link", "path": "/Applications" }
-      ]
-    }
+    "electron-packager": "^17.1.2"
   }
 }
