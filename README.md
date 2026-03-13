@@ -51,11 +51,6 @@ Or double-click **START.bat** in the folder.
 - Export as **BibTeX** or **JSON**
 - Import from a colleague's JSON export
 
-### Trends
-- Browse recent high-impact papers by citation velocity
-- Covers condensed matter, quantum physics, ML, and more
-- Optional AI summary of emerging themes
-
 ### AI Assistant
 - **Summarize** any paper directly into your notes
 - **Chat** with your library — ask questions across all your saved papers
