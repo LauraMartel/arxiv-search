@@ -4,3 +4,6 @@ dist/
 Thumbs.db
 *.log
 npm-debug.log*
+.env
+.env.*
+!.env.example

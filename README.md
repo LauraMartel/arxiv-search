@@ -124,4 +124,5 @@ Papers saved with **+ Library** will automatically appear in your Zotero group l
 - API keys are stored locally only — **never** sent to GitHub or Zotero
 - Notes are personal and not included in GitHub sync
 - In Electron mode, all arXiv requests go directly — no third-party proxies
+- In browser mode, some requests may be routed through third-party CORS proxies ([corsproxy.io](https://corsproxy.io) and [api.allorigins.win](https://api.allorigins.win)) to work around browser cross-origin restrictions. These proxies see the request URLs but not your API keys or credentials.
 
