@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src *; img-src 'self' data: https:;"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://export.arxiv.org https://arxiv.org https://api.semanticscholar.org https://api.anthropic.com https://api.openai.com https://api.github.com https://api.zotero.org https://www.zotero.org https://www.googleapis.com https://corsproxy.io https://api.allorigins.win; img-src 'self' data:; media-src 'none'; object-src 'none'">
 <title>arXiv Browser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
@@ -88,6 +88,12 @@ body{background:var(--bg);color:var(--ink);font-family:'IBM Plex Mono',monospace
 .blank-s{font-size:.7rem;color:var(--ink3);line-height:1.75;max-width:320px;margin:0 auto}
 .err-t{color:var(--acc)}
 
+/* FIND BAR */
+#find-bar { display:none }
+#find-bar.open { display:flex !important }
+.find-hl { background:#ffe066; color:#000; border-radius:2px; }
+.find-hl.find-current { background:#ff9500; color:#fff; }
+
 /* CARD */
 .card{background:var(--sur);border:1px solid var(--bdr);margin-bottom:.9rem;box-shadow:0 1px 4px rgba(0,0,0,.07);opacity:0;transform:translateY(6px);animation:up .3s ease forwards}
 @keyframes up{to{opacity:1;transform:translateY(0)}}
@@ -134,8 +140,6 @@ body{background:var(--bg);color:var(--ink);font-family:'IBM Plex Mono',monospace
 .chip:hover{border-color:var(--ink2)}
 .chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .chip-c{opacity:.6;font-size:.57rem}
-.newcoll{height:28px;padding:0 .72rem;border:1px dashed var(--bdr2);background:none;font-family:'IBM Plex Mono',monospace;font-size:.61rem;cursor:pointer;color:var(--ink3);transition:all .12s}
-.newcoll:hover{border-color:var(--acc);color:var(--acc)}
 .lsearch{width:100%;height:37px;background:var(--sur);border:1px solid var(--bdr2);color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:.72rem;padding:0 .8rem;outline:none;margin-bottom:.85rem}
 .lsearch:focus{border-color:var(--acc)}
 .lsearch::placeholder{color:var(--ink3)}
@@ -145,7 +149,6 @@ body{background:var(--bg);color:var(--ink);font-family:'IBM Plex Mono',monospace
 .lc-body{padding:.9rem 1.1rem .65rem;cursor:pointer}
 .lc-meta{font-size:.59rem;color:var(--ink3);margin-bottom:.32rem;display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
 .lcat{color:var(--acc2)}.ldoi{color:var(--acc);text-decoration:none}
-.ctag{font-size:.55rem;padding:.04rem .28rem;border:1px solid var(--acc2);color:var(--acc2);text-transform:uppercase;letter-spacing:.04em}
 .lc-title{font-family:'Lora',serif;font-size:.95rem;line-height:1.42;color:var(--ink);margin-bottom:.3rem}
 .lc-authors{font-size:.63rem;color:var(--ink3)}
 .labs{overflow:hidden;max-height:0;transition:max-height .3s ease}
@@ -291,12 +294,13 @@ body{background:var(--bg);color:var(--ink);font-family:'IBM Plex Mono',monospace
       </div>
       <div class="cg2"><label>Show</label>
         <select id="max-res">
-          <option>10</option><option selected>20</option><option>50</option><option>100</option>
+          <option value="25">25 / page</option><option value="50" selected>50 / page</option><option value="100">100 / page</option><option value="200">200 / page</option><option value="500">500 / page</option>
         </select>
       </div>
     </div>
   </header>
   <div class="rbar" id="rbar">Select a category and press Search</div>
+  <div id="load-more-bar" style="display:none;padding:.5rem 1.5rem;border-bottom:1px solid var(--bdr)"></div>
   <div class="pbar" id="pbar"><div class="pfill"></div></div>
   <div class="feed" id="feed">
     <div class="blank"><div class="blank-i">◎</div><div class="blank-t">Pick a category to start</div><div class="blank-s">Click the Category field, start typing to filter, then press Search.</div></div>
@@ -309,6 +313,7 @@ body{background:var(--bg);color:var(--ink);font-family:'IBM Plex Mono',monospace
     <div class="lhdr">
       <div class="ltitle">My Library</div>
       <div class="lacts">
+        <button class="lbtn" id="zotero-sync-btn" style="display:none" onclick="syncFromZotero()">⟳ Sync Zotero</button>
         <button class="lbtn" id="gh-pull-btn" style="display:none" onclick="ghPull()">⬇ Pull GitHub</button>
         <button class="lbtn" id="gh-push-btn" style="display:none" onclick="ghPush()">⬆ Push GitHub</button>
         <button class="lbtn" onclick="importJSON()">⬆ Import JSON</button>
@@ -333,11 +338,20 @@ body{background:var(--bg);color:var(--ink);font-family:'IBM Plex Mono',monospace
       <div class="logo-sub">What is the community working on right now?</div>
     </div>
     <div style="display:flex;gap:.5rem;align-items:center">
-      <select id="trend-cat" style="height:36px;background:var(--sur);border:1px solid var(--bdr2);color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:.72rem;padding:0 .6rem;outline:none"></select>
+      <input id="trend-custom" placeholder="Search any field…" style="height:36px;width:180px;background:var(--sur);border:1px solid var(--bdr2);color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:.72rem;padding:0 .6rem;outline:none" oninput="if(this.value) document.getElementById('trend-cat').value=''" />
+      <select id="trend-cat" style="height:36px;background:var(--sur);border:1px solid var(--bdr2);color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:.72rem;padding:0 .6rem;outline:none" onchange="if(this.value) document.getElementById('trend-custom').value=''">
+        <option value="">— or pick a preset —</option>
+      </select>
       <select id="trend-window" style="height:36px;background:var(--sur);border:1px solid var(--bdr2);color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:.72rem;padding:0 .6rem;outline:none">
-        <option value="7">Last 7 days</option>
-        <option value="14">Last 14 days</option>
-        <option value="30">Last 30 days</option>
+        <option value="90">Last 90 days</option>
+        <option value="180">Last 6 months</option>
+        <option value="365" selected>Last 1 year</option>
+        <option value="730">Last 2 years</option>
+      </select>
+      <select id="trend-mode" style="height:36px;background:var(--sur);border:1px solid var(--bdr2);color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:.72rem;padding:0 .6rem;outline:none">
+        <option value="velocity">Citation Velocity</option>
+        <option value="recent">Most Recent</option>
+        <option value="volume">Publication Volume</option>
       </select>
       <button class="sbtn" id="trend-btn" onclick="doTrends()">Analyse</button>
     </div>
@@ -438,23 +452,71 @@ body{background:var(--bg);color:var(--ink);font-family:'IBM Plex Mono',monospace
       <div id="set-gh-status"></div>
     </div>
 
+    <div class="set-sec">
+      <div class="set-sec-t">📚 Zotero <span style="font-size:.6rem;color:var(--ink3);font-weight:400;text-transform:none;letter-spacing:0">— shared lab reference library</span></div>
+      <div class="set-row">
+        <label class="set-label">API Key <span>— zotero.org → Settings → Feeds/API → Create new private key (Read/Write access to groups)</span></label>
+        <input class="set-input" id="set-zotero-key" type="password" placeholder="your Zotero API key"/>
+      </div>
+      <div class="set-row">
+        <label class="set-label">Group Library ID <span>— visible in URL of your group: zotero.org/groups/<strong>123456</strong>/…</span></label>
+        <input class="set-input" id="set-zotero-group" type="text" placeholder="e.g. 1234567"/>
+      </div>
+      <div class="set-row" style="display:flex;gap:.5rem;align-items:center">
+        <button class="sbtn" onclick="testZotero()" style="font-size:.7rem">Test connection</button>
+        <div id="set-zotero-status" style="font-size:.7rem;color:var(--ink3)"></div>
+      </div>
+      <p class="set-hint">
+        Create a free group at <a href="#" onclick="openUrl('https://www.zotero.org/groups/new')">zotero.org/groups/new</a> · 
+        Get API key at <a href="#" onclick="openUrl('https://www.zotero.org/settings/keys')">zotero.org/settings/keys</a>
+      </p>
+    </div>
+
+    <div class="set-sec">
+      <div class="set-sec-t">☁️ Google Drive <span style="font-size:.6rem;color:var(--ink3);font-weight:400;text-transform:none;letter-spacing:0">— PDF storage + Excel table</span></div>
+      <div class="set-row">
+        <label class="set-label">API Key <span>— console.cloud.google.com → APIs → Drive API → Credentials → Create API Key</span></label>
+        <input class="set-input" id="set-drive-key" type="password" placeholder="AIza…"/>
+      </div>
+      <div class="set-row">
+        <label class="set-label">Folder ID <span>— create a shared folder, paste the ID from its URL: drive.google.com/drive/folders/<strong>1BxiMV…</strong></span></label>
+        <input class="set-input" id="set-drive-folder" type="text" placeholder="1BxiMVmTpClLsHnlXFGSBD3HbQBRBNjt…"/>
+      </div>
+      <div class="set-row" style="display:flex;gap:.5rem;align-items:center">
+        <button class="sbtn" onclick="testDrive()" style="font-size:.7rem">Test connection</button>
+        <div id="set-drive-status" style="font-size:.7rem;color:var(--ink3)"></div>
+      </div>
+      <p class="set-hint">
+        The folder must be set to <em>"Anyone with the link can edit"</em>. 
+        PDFs are uploaded automatically when you save a paper. An Excel table <code>papers.xlsx</code> is kept in sync.
+      </p>
+    </div>
+
+    <div class="set-sec">
+      <div class="set-sec-t">💾 Storage mode</div>
+      <div class="set-row">
+        <label class="set-label">When saving a paper, use</label>
+        <select class="set-select" id="set-storage-mode">
+          <option value="local">Local only (default)</option>
+          <option value="zotero">Zotero only</option>
+          <option value="drive">Google Drive only</option>
+          <option value="both">Zotero + Google Drive (recommended for teams)</option>
+        </select>
+      </div>
+    </div>
+
     <button class="save-btn" onclick="saveSettings()">Save settings</button>
   </div>
 </div>
 
 <!-- MODALS -->
-<div class="overlay" id="modal-coll" onclick="if(event.target===this)closeModal('modal-coll')">
-  <div class="modal">
-    <div class="modal-t">New collection</div>
-    <input class="modal-in" id="coll-name-in" placeholder="e.g. PhD Chapter 3, Superconductivity…" onkeydown="if(event.key==='Enter')createColl()"/>
-    <div class="macts">
-      <button class="mbtn" onclick="closeModal('modal-coll')">Cancel</button>
-      <button class="mbtn pri" onclick="createColl()">Create</button>
+<!-- modal-coll removed -->
+<div style="display:none">
     </div>
   </div>
 </div>
 
-<div class="overlay" id="modal-addcoll" onclick="if(event.target===this)closeModal('modal-addcoll')">
+<div class="overlay" id="modal-addcoll" style="display:none" onclick="if(event.target===this)closeModal('modal-addcoll')">
   <div class="modal">
     <div class="modal-t">Add to collection</div>
     <div class="cpick" id="cpick"></div>
@@ -542,16 +604,15 @@ const CATS=[
 ];
 
 // ═══ STATE ══════════════════════════════════════════════════
-let library=[], collections=[], activeColl=null, chatHistory=[];
-let settings={provider:'openai',apiKey:'',model:'',username:'',ghToken:'',ghRepo:'',ghBranch:'main'};
+let library=[], activeColl=null, chatHistory=[];
+let settings={provider:'openai',apiKey:'',model:'',username:'',ghToken:'',ghRepo:'',ghBranch:'main',zoteroKey:'',zoteroGroup:'',driveKey:'',driveFolder:'',storageMode:'local'};
 let ghSha=null;
 
 function loadState(){
   try{library=JSON.parse(localStorage.getItem('ax_lib')||'[]')}catch(_){library=[]}
-  try{collections=JSON.parse(localStorage.getItem('ax_cols')||'[]')}catch(_){collections=[]}
   try{settings=Object.assign(settings,JSON.parse(localStorage.getItem('ax_cfg')||'{}'))}catch(_){}
 }
-function saveLib(){localStorage.setItem('ax_lib',JSON.stringify(library));localStorage.setItem('ax_cols',JSON.stringify(collections));updateBadge()}
+function saveLib(){localStorage.setItem('ax_lib',JSON.stringify(library));updateBadge()}
 function saveCfg(){localStorage.setItem('ax_cfg',JSON.stringify(settings))}
 loadState();
 
@@ -563,7 +624,7 @@ const fmtLong=iso=>iso?new Date(iso).toLocaleDateString('en-GB',{weekday:'short'
 const fmtShort=iso=>iso?new Date(iso).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):'';
 const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
-function openUrl(u){if(window.electronAPI)require('electron').shell?.openExternal(u);else window.open(u,'_blank')}
+function openUrl(u){if(window.electronAPI?.openURL)window.electronAPI.openURL(u);else window.open(u,'_blank')}
 
 let toastT;
 function toast(m,dur=2600){const el=document.getElementById('toast');el.textContent=m;el.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),dur)}
@@ -601,7 +662,7 @@ function buildDrop(list){
     const gl=document.createElement('div');gl.className='cg';gl.textContent=g;cd.appendChild(gl);
     cs.forEach(c=>{
       const el=document.createElement('div');el.className='ci-item';el.dataset.fi=fi++;
-      el.innerHTML=`<span class="ci-id">${c.id}</span><span class="ci-name">${c.n}</span>`;
+      el.innerHTML=`<span class="ci-id">${esc(c.id)}</span><span class="ci-name">${esc(c.n)}</span>`;
       el.addEventListener('mousedown',e=>{e.preventDefault();pickCat(c.id)});
       el.addEventListener('mouseenter',()=>{dropHi=+el.dataset.fi;hiDrop()});
       cd.appendChild(el);
@@ -654,7 +715,9 @@ async function fetchArxiv(url){
     try{
       const r=await fetch(proxy(url),{signal:AbortSignal.timeout(16000)});
       if(!r.ok)continue;
-      let t=await r.text();
+      const buf=await r.arrayBuffer();
+      if(buf.byteLength>5*1024*1024){continue;} // skip suspiciously large responses (>5MB)
+      let t=new TextDecoder().decode(buf);
       try{const j=JSON.parse(t);if(j.contents)t=j.contents}catch(_){}
       if(t.includes('<feed'))return t;
     }catch(_){}
@@ -679,44 +742,165 @@ function parseXML(xml){
     return{id,arxivId,title,summary,published,updated,authors,cats,doi,jref,pdfLink};
   });
 }
+// Current search state — used by loadMore()
+let _searchState = null;
+
 async function doSearch(){
   const kw=kwi.value.trim(),from=document.getElementById('df').value,to=document.getElementById('dt').value;
-  const sortBy=document.getElementById('sort-by').value,maxRes=document.getElementById('max-res').value;
+  const sortBy=document.getElementById('sort-by').value;
+  const pageSize=parseInt(document.getElementById('max-res').value)||50;
   const field=document.getElementById('search-field').value;
-  const sbtn=document.getElementById('sbtn');sbtn.disabled=true;sbtn.textContent='Searching\u2026';
+  const sbtn=document.getElementById('sbtn');sbtn.disabled=true;sbtn.textContent='Searching…';
   document.getElementById('pbar').style.display='';
   document.getElementById('feed').innerHTML='';
-  document.getElementById('rbar').textContent='Fetching\u2026';
+  document.getElementById('rbar').textContent='Fetching…';
+  document.getElementById('load-more-bar').style.display='none';
   let dc='';
   if(from||to){const f=from?toTS(from,false):'000000000000';const t=to?toTS(to,true):'999999999999';dc=` AND submittedDate:[${f} TO ${t}]`}
-  // Build keyword clause with field prefix
   let kwClause='';
   if(kw){
-    if(field==='all'){kwClause=`all:${kw}`}
-    else if(field==='ti+abs'){kwClause=`(ti:${kw} OR abs:${kw})`}
-    else{kwClause=`${field}:${kw}`}
+    // Quote multi-word terms so arXiv doesn't split them across fields.
+    // Single words and author names don't need quotes.
+    const needsQuotes = kw.includes(' ') && field !== 'au';
+    const kwQ = needsQuotes ? `"${kw}"` : kw;
+    if(field==='all')      { kwClause=`all:${kwQ}`; }
+    else if(field==='ti+abs'){ kwClause=`(ti:${kwQ} OR abs:${kwQ})`; }
+    else                   { kwClause=`${field}:${kwQ}`; }
   }
-  const q=kwClause?`${kwClause} AND cat:${selCat}${dc}`:`cat:${selCat}${dc}`;
-  const params=new URLSearchParams({search_query:q,start:0,max_results:maxRes,sortBy,sortOrder:'descending'});
+  // If no keyword, search only by category. If keyword only (no category selected), drop cat filter.
+  let q;
+  // Expand top-level categories (e.g. 'cond-mat') to OR of all subcategories
+  // because arXiv papers are submitted to subcats, not the top-level group
+  function expandCat(cat){
+    const subCats = CATS.filter(x => x.id !== cat && x.id.startsWith(cat+'.'));
+    if(!subCats.length) return `cat:${cat}`; // already a subcat or has no children
+    return '(' + subCats.map(x=>`cat:${x.id}`).join(' OR ') + ')';
+  }
+  const catClause = selCat ? expandCat(selCat) : '';
+  if(kwClause && catClause){ q=`${kwClause} AND ${catClause}${dc}`; }
+  else if(kwClause)         { q=`${kwClause}${dc}`; }
+  else if(catClause)        { q=`${catClause}${dc}`; }
+  else                      { q=`*${dc}`; }
+  _searchState={ q, sortBy, pageSize, loaded:0, total:null, field, kw };
   try{
-    const xml=await fetchArxiv(`https://export.arxiv.org/api/query?${params}`);
-    const papers=parseXML(xml);
+    const papers=await _fetchPage(0);
     const feed=document.getElementById('feed');
     if(!papers.length){
-      feed.innerHTML='<div class="blank"><div class="blank-i">\u25cc</div><div class="blank-t">No results</div><div class="blank-s">Try a broader date range or different keywords.</div></div>';
+      feed.innerHTML='<div class="blank"><div class="blank-i">◌</div><div class="blank-t">No results</div><div class="blank-s">Try a broader date range or different keywords.</div></div>';
       document.getElementById('rbar').textContent='No papers found';
+      document.getElementById('load-more-bar').style.display='none';
     }else{
-      papers.forEach((p,i)=>{const el=makeCard(p,i);feed.appendChild(el)});
-      document.getElementById('rbar').innerHTML=`<strong>${papers.length}</strong> papers \u00b7 ${selCat}${kw?' \u00b7 \u201c'+kw+'\u201d ['+field+']':''}`;
+      papers.forEach((p,i)=>{feed.appendChild(makeCard(p,i))});
+      _searchState.loaded=papers.length;
+      _updateSearchBar();
+      _updateLoadMoreBar();
     }
   }catch(err){
-    document.getElementById('feed').innerHTML=`<div class="blank"><div class="blank-i">\u26a0</div><div class="blank-t err-t">Search failed</div><div class="blank-s">${esc(err.message)}</div></div>`;
+    document.getElementById('feed').innerHTML=`<div class="blank"><div class="blank-i">⚠</div><div class="blank-t err-t">Search failed</div><div class="blank-s">${esc(err.message)}</div></div>`;
     document.getElementById('rbar').textContent='Error';
   }finally{
     sbtn.disabled=false;sbtn.textContent='Search';
     document.getElementById('pbar').style.display='none';
   }
 }
+
+async function _fetchPage(start){
+  if(!_searchState) return [];
+  const {q,sortBy,pageSize}=_searchState;
+  const params=new URLSearchParams({search_query:q,start,max_results:pageSize,sortBy,sortOrder:'descending'});
+  const xml=await fetchArxiv(`https://export.arxiv.org/api/query?${params}`);
+  const doc=new DOMParser().parseFromString(xml,'application/xml');
+  const totalEl=doc.querySelector('opensearch\\:totalResults,totalResults')||
+                doc.getElementsByTagNameNS('http://a9.com/-/spec/opensearch/1.1/','totalResults')[0];
+  if(totalEl) _searchState.total=parseInt(totalEl.textContent)||null;
+  return parseXML(xml);
+}
+
+function _updateSearchBar(){
+  if(!_searchState) return;
+  const {loaded,total,kw,field}=_searchState;
+  const totalStr=total!=null?' of <strong>'+total.toLocaleString()+'</strong>':'';
+  document.getElementById('rbar').innerHTML=
+    'Showing <strong>'+loaded+'</strong>'+totalStr+' papers · '+selCat+
+    (kw?' · “'+kw+'” ['+field+']':'');
+}
+
+function _updateLoadMoreBar(){
+  if(!_searchState) return;
+  const {loaded,total,pageSize}=_searchState;
+  const bar=document.getElementById('load-more-bar');
+  const cap=2000; // arXiv hard cap per query
+  const hasMore=total!=null ? loaded<Math.min(total,cap) : loaded%pageSize===0;
+  if(hasMore){
+    const remaining=total!=null?Math.min(total,cap)-loaded:null;
+    const nextBatch=remaining!=null?Math.min(pageSize,remaining):pageSize;
+    const allRemaining=remaining!=null?remaining:null;
+    bar.style.display='';
+    bar.innerHTML=
+      '<button onclick="loadMore()" id="load-more-btn" '+
+        'style="font-size:.7rem;padding:.32rem .9rem;background:var(--sur);border:1px solid var(--bdr2);color:var(--ink);cursor:pointer;margin-right:.5rem">'+
+        'Load '+nextBatch+' more</button>'+
+      (allRemaining!=null && allRemaining>nextBatch
+        ? '<button onclick="loadAll()" '+
+            'style="font-size:.7rem;padding:.32rem .9rem;background:var(--sur);border:1px solid var(--bdr2);color:var(--ink3);cursor:pointer;margin-right:.5rem">'+
+            'Load all ('+allRemaining+' remaining)</button>'
+        : '')+
+      (total!=null?' <span style="font-size:.6rem;color:var(--ink3)">'+loaded.toLocaleString()+' / '+Math.min(total,cap).toLocaleString()+' shown'+(total>cap?' · arXiv caps at 2,000 per query':'')+' </span>':'');
+  }else{
+    bar.style.display=loaded>0?'':'none';
+    if(loaded>0) bar.innerHTML='<span style="font-size:.6rem;color:var(--ink3)">All '+loaded.toLocaleString()+' results loaded'+((_searchState.total||0)>2000?' · arXiv caps at 2,000 per query; use narrower filters to see more':'')+' </span>';
+  }
+}
+
+// Load everything remaining up to the arXiv cap (2000)
+async function loadAll(){
+  if(!_searchState) return;
+  const cap=2000;
+  const bar=document.getElementById('load-more-bar');
+  bar.innerHTML='<span style="font-size:.7rem;color:var(--ink3)">Loading all results…</span>';
+  const feed=document.getElementById('feed');
+  let batchNum=0;
+  while(_searchState.loaded < Math.min(_searchState.total||cap, cap)){
+    const btn=document.getElementById('load-more-btn');
+    try{
+      const papers=await _fetchPage(_searchState.loaded);
+      if(!papers.length) break;
+      const offset=_searchState.loaded;
+      papers.forEach((p,i)=>{ feed.appendChild(makeCard(p,offset+i)); });
+      _searchState.loaded+=papers.length;
+      _updateSearchBar();
+      batchNum++;
+      // Small delay to avoid hammering arXiv
+      if(_searchState.loaded < Math.min(_searchState.total||cap, cap)){
+        bar.innerHTML='<span style="font-size:.7rem;color:var(--ink3)">Loading… '+_searchState.loaded+' / '+Math.min(_searchState.total,cap)+' </span>';
+        await new Promise(r=>setTimeout(r,300));
+      }
+    }catch(err){
+      bar.innerHTML='<span style="font-size:.7rem;color:#c00">Load failed: '+esc(err.message)+'</span>';
+      return;
+    }
+  }
+  _updateLoadMoreBar();
+}
+
+async function loadMore(){
+  if(!_searchState) return;
+  const btn=document.getElementById('load-more-btn');
+  if(btn){btn.disabled=true;btn.textContent='Loading…';}
+  try{
+    const papers=await _fetchPage(_searchState.loaded);
+    const feed=document.getElementById('feed');
+    const offset=_searchState.loaded;
+    papers.forEach((p,i)=>{feed.appendChild(makeCard(p,offset+i))});
+    _searchState.loaded+=papers.length;
+    _updateSearchBar();
+    _updateLoadMoreBar();
+  }catch(err){
+    const bar=document.getElementById('load-more-bar');
+    bar.innerHTML='<span style="font-size:.7rem;color:#c00">Failed to load more: '+esc(err.message)+'</span>';
+  }
+}
+
 
 function makeCard(p,i){
   const el=document.createElement('div');el.className='card';el.style.animationDelay=`${Math.min(i*35,600)}ms`;
@@ -745,6 +929,8 @@ function makeCard(p,i){
       <a class="lb la" href="${esc(p.id)}" target="_blank">arXiv \u2197</a>
       <a class="lb lv" href="${esc(p.pdfLink)}" target="_blank">View PDF</a>
       <button class="lb ld">\u2b07 Save PDF</button>
+      ${p.driveUrl?`<a class="lb" href="${esc(p.driveUrl)}" target="_blank" style="border-color:rgba(15,157,88,.4);color:#0f9d58">\u2601 Drive PDF</a>`:''}
+      ${p.zoteroKey?`<a class="lb" href="https://www.zotero.org/groups/${settings.zoteroGroup||''}/items/${esc(p.zoteroKey)}" target="_blank" style="border-color:rgba(204,0,0,.3);color:#c00">Z Zotero</a>`:''}
       <button class="lb ls${saved?' saved':''}">${saved?'\u2713 In Library':'+ Library'}</button>
     </div>
   </div>`;
@@ -754,19 +940,31 @@ function makeCard(p,i){
   el.querySelector('.card-body').addEventListener('click',flip);
   el.querySelector('.lb.ld').addEventListener('click',e=>{e.stopPropagation();nativeSavePDF(p.pdfLink,p.arxivId)});
   const savebtn=el.querySelector('.lb.ls');
-  savebtn.addEventListener('click',e=>{
+  savebtn.addEventListener('click',async e=>{
     e.stopPropagation();
     const idx=library.findIndex(x=>x.arxivId===p.arxivId);
-    if(idx>=0){library.splice(idx,1);savebtn.className='lb ls';savebtn.textContent='+ Library';toast('Removed from library')}
-    else{library.push({...p,note:'',collections:[],savedAt:new Date().toISOString()});savebtn.className='lb ls saved';savebtn.textContent='\u2713 In Library';toast('Added to library \u2713')}
-    saveLib();
+    if(idx>=0){
+      // Remove from library
+      const removed = library[idx];
+      library.splice(idx,1);
+      saveLib();
+      savebtn.className='lb ls'; savebtn.textContent='+ Library';
+      toast('Removed from library');
+      // Remove from Zotero if key stored
+      if(removed.zoteroKey && settings.zoteroGroup && settings.zoteroKey){
+        removeFromZotero(removed.zoteroKey).catch(()=>{});
+      }
+    } else {
+      // Save with integrations (Zotero + Drive + local)
+      await saveWithIntegrations(p, savebtn);
+    }
   });
   return el;
 }
 
 // ═══ NATIVE PDF SAVE (Electron) ══════════════════════════════
 async function nativeSavePDF(url, arxivId){
-  const filename=`${arxivId.replace('/','_')}.pdf`;
+  const filename=`${(arxivId||'paper').replace(/[/\\:*?"<>|\x00]/g,'_').slice(0,100)}.pdf`;
   try{
     toast('Downloading PDF\u2026',8000);
     if(window.electronAPI){
@@ -789,7 +987,6 @@ async function nativeSavePDF(url, arxivId){
 function getLibItems(){
   const q=document.getElementById('lib-search').value.toLowerCase().trim();
   return library.filter(p=>{
-    if(activeColl&&!p.collections.includes(activeColl))return false;
     if(!q)return true;
     return p.title.toLowerCase().includes(q)||p.authors.join(' ').toLowerCase().includes(q)||(p.note||'').toLowerCase().includes(q);
   });
@@ -805,31 +1002,16 @@ function renderLib(){
 }
 function renderCollBar(){
   const bar=document.getElementById('collbar');bar.innerHTML='';
-  const all=document.createElement('button');all.className='chip'+(activeColl===null?' on':'');
-  all.innerHTML=`All <span class="chip-c">${library.length}</span>`;
-  all.onclick=()=>{activeColl=null;renderLib()};bar.appendChild(all);
-  collections.forEach(name=>{
-    const n=library.filter(p=>p.collections.includes(name)).length;
-    const chip=document.createElement('button');chip.className='chip'+(activeColl===name?' on':'');
-    chip.innerHTML=`${esc(name)} <span class="chip-c">${n}</span>`;
-    chip.onclick=()=>{activeColl=name;renderLib()};
-    chip.addEventListener('contextmenu',e=>{e.preventDefault();if(confirm(`Delete collection \u201c${name}\u201d? Papers will remain.`)){collections=collections.filter(c=>c!==name);library.forEach(p=>{p.collections=p.collections.filter(c=>c!==name)});if(activeColl===name)activeColl=null;saveLib();renderLib()}});
-    bar.appendChild(chip);
-  });
-  const nb=document.createElement('button');nb.className='newcoll';nb.textContent='+ New';nb.onclick=()=>openModal('modal-coll');bar.appendChild(nb);
 }
-let collTarget=null;
 function makeLibCard(p){
   const el=document.createElement('div');el.className='lc';
-  const ctags=(p.collections||[]).map(c=>`<span class="ctag">${esc(c)}</span>`).join('');
   el.innerHTML=`
   <div class="lc-body">
     <div class="lc-meta">
       <span>${fmtShort(p.published)}</span>
-      ${p.cats?.[0]?`<span class="lcat">${esc(p.cats[0])}</span>`:''}
-      ${p.doi?`<a class="ldoi" href="https://doi.org/${esc(p.doi)}" target="_blank">DOI \u2197</a>`:''}
+      ${p.cats?.[0]?`<span class="lcat">${esc(String(p.cats[0]))}</span>`:''}
+      ${p.doi&&/^10\.\d{4,}/.test(p.doi)?`<a class="ldoi" href="https://doi.org/${esc(p.doi)}" target="_blank">DOI \u2197</a>`:''}
       ${p.savedBy&&p.savedBy!==(settings.username||'shared')?`<span style="color:var(--pur);font-size:.57rem">\u{1f464} ${esc(p.savedBy)}</span>`:''}
-      ${ctags}
     </div>
     <div class="lc-title">${esc(p.title)}</div>
     <div class="lc-authors">${esc((p.authors||[]).slice(0,5).join(', '))}${p.authors?.length>5?` +${p.authors.length-5}`:''}</div>
@@ -842,9 +1024,10 @@ function makeLibCard(p){
       <a class="lb la" href="${esc(p.id)}" target="_blank">arXiv \u2197</a>
       <a class="lb lv" href="${esc(p.pdfLink)}" target="_blank">View PDF</a>
       <button class="lb ld">\u2b07 Save PDF</button>
-      <button class="lb" style="border-color:var(--bdr2);color:var(--ink2)">\u{1f4c2} Collection</button>
-      ${settings.apiKey?`<button class="lb" style="border-color:rgba(107,79,160,.4);color:var(--pur)">\u{1f916} Summarize</button>`:''}
-      <button class="lb" style="border-color:rgba(184,76,30,.3);color:var(--acc)">\u00d7 Remove</button>
+      ${settings.apiKey?`<button class="lb lc-ai-btn" style="border-color:rgba(107,79,160,.4);color:var(--pur)">\u{1f916} Summarize</button>`:''}
+    </div>
+    <div style="display:flex;gap:.3rem;flex-wrap:wrap">
+      <button class="lb lc-rm-btn" style="border-color:rgba(184,76,30,.3);color:var(--acc)">\u00d7 Remove</button>
     </div>
   </div>`;
   const abs=el.querySelector('.labs'),abtn=el.querySelector('.lc-abs-btn');
@@ -852,43 +1035,38 @@ function makeLibCard(p){
   el.querySelector('.lc-body').addEventListener('click',()=>{const o=abs.classList.toggle('open');abtn.textContent=o?'\u25be Abstract':'\u25b8 Abstract'});
   el.querySelector('.lb.ld').addEventListener('click',e=>{e.stopPropagation();nativeSavePDF(p.pdfLink,p.arxivId)});
   const btns=[...el.querySelectorAll('.lc-foot .lb')].filter(b=>!b.classList.contains('ld')&&!b.tagName==='A');
-  // collection, summarize, remove buttons
+  // summarize, remove buttons
   const footBtns=el.querySelectorAll('.lc-foot div button');
-  footBtns[0].addEventListener('click',e=>{e.stopPropagation();collTarget=p.arxivId;renderCollPick();openModal('modal-addcoll')});
-  let offset=1;
-  if(settings.apiKey){footBtns[1].addEventListener('click',e=>{e.stopPropagation();aiSummarize(p)});offset=2}
-  footBtns[offset].addEventListener('click',e=>{e.stopPropagation();if(confirm('Remove from library?')){library=library.filter(x=>x.arxivId!==p.arxivId);saveLib();renderLib();toast('Removed')}});
+  if(settings.apiKey){
+    el.querySelector('.lc-ai-btn')?.addEventListener('click',e=>{e.stopPropagation();aiSummarize(p)});
+  }
+  el.querySelector('.lc-rm-btn').addEventListener('click',async e=>{
+    e.stopPropagation();
+    if(!confirm('Remove from library?')) return;
+    // Remove locally
+    const entry = library.find(x=>x.arxivId===p.arxivId);
+    library = library.filter(x=>x.arxivId!==p.arxivId);
+    saveLib();
+    renderLib();
+    toast('Removed');
+    // Remove from Zotero if synced
+    if(entry?.zoteroKey && settings.zoteroKey && settings.zoteroGroup){
+      toast('Removing from Zotero…', 3000);
+      removeFromZotero(entry.zoteroKey)
+        .then(()=>toast('Removed from Zotero ✓'))
+        .catch(e=>toast('Zotero remove failed: '+e.message, 4000));
+    }
+  });
   const ta=el.querySelector('.note-area');let nt;
-  ta.addEventListener('input',()=>{clearTimeout(nt);nt=setTimeout(()=>{const entry=library.find(x=>x.arxivId===p.arxivId);if(entry){entry.note=ta.value;saveLib()}},1000)});
+  ta.addEventListener('input',()=>{clearTimeout(nt);nt=setTimeout(()=>{const entry=library.find(x=>x.arxivId===p.arxivId);if(entry){entry.note=ta.value.slice(0,5000);saveLib()}},1000)});
   ta.addEventListener('click',e=>e.stopPropagation());
   return el;
-}
-function renderCollPick(){
-  const list=document.getElementById('cpick');list.innerHTML='';
-  if(!collections.length){list.innerHTML='<span style="font-size:.7rem;color:var(--ink3)">No collections yet \u2014 create one first.</span>';return}
-  const entry=library.find(p=>p.arxivId===collTarget);
-  collections.forEach(name=>{
-    const on=entry?.collections.includes(name);
-    const btn=document.createElement('button');btn.className='cpi'+(on?' on':'');btn.textContent=name;
-    btn.addEventListener('click',()=>{
-      if(!entry)return;
-      if(entry.collections.includes(name)){entry.collections=entry.collections.filter(c=>c!==name);btn.classList.remove('on')}
-      else{entry.collections.push(name);btn.classList.add('on')}
-      saveLib();renderLib();
-    });
-    list.appendChild(btn);
-  });
-}
-function createColl(){
-  const name=document.getElementById('coll-name-in').value.trim();if(!name)return;
-  if(!collections.includes(name))collections.push(name);saveLib();
-  document.getElementById('coll-name-in').value='';closeModal('modal-coll');renderLib();toast(`Collection \u201c${name}\u201d created`);
 }
 
 // ═══ JSON EXPORT / IMPORT ═══════════════════════════════════
 function exportJSON(){
   if(!library.length){toast('Library is empty');return}
-  const data=JSON.stringify({library,collections,exportedAt:new Date().toISOString(),version:2},null,2);
+  const data=JSON.stringify({library,exportedAt:new Date().toISOString(),version:2},null,2);
   const blob=new Blob([data],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
   a.download=`arxiv-library-${new Date().toISOString().slice(0,10)}.json`;a.click();toast('Exported \u2713');
@@ -897,9 +1075,12 @@ function importJSON(){
   const input=document.createElement('input');input.type='file';input.accept='.json';
   input.onchange=async()=>{
     try{
-      const data=JSON.parse(await input.files[0].text());
-      let added=0;(data.library||[]).forEach(p=>{if(!library.find(x=>x.arxivId===p.arxivId)){library.push(p);added++}});
-      collections=[...new Set([...collections,...(data.collections||[])])];
+      const raw=JSON.parse(await input.files[0].text());
+      if(typeof raw !== 'object' || raw === null) throw new Error('bad format');
+      let added=0;(raw.library||[]).forEach(p=>{
+        if(typeof p.arxivId !== 'string' || !p.arxivId) return; // skip malformed entries
+        if(!library.find(x=>x.arxivId===p.arxivId)){library.push(p);added++}
+      });
       saveLib();renderLib();toast(`Imported ${added} papers \u2713`);
     }catch(_){toast('Import failed \u2014 invalid file')}
   };input.click();
@@ -953,6 +1134,7 @@ function ghFilename(){
 
 async function ghPull(){
   if(!settings.ghToken||!settings.ghRepo){toast('Configure GitHub in Settings');return}
+  if(!/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/.test(settings.ghRepo)){toast('Invalid repo format — use owner/repo');return}
   const branch=settings.ghBranch||'main';
   try{
     toast('Pulling from all colleagues\u2026',8000);
@@ -962,8 +1144,10 @@ async function ghPull(){
     const files=await r.json();
     const libFiles=files.filter(f=>f.name.startsWith('library-')&&f.name.endsWith('.json'));
     if(!libFiles.length){toast('No library files found \u2014 Push first');return}
-    let added=0,newCols=[...collections];
+    let added=0;
     for(const file of libFiles){
+      // Validate download_url is actually from GitHub (not a hijacked redirect)
+      if(!file.download_url||!file.download_url.startsWith('https://raw.githubusercontent.com/')){continue;}
       const fr=await fetch(file.download_url);
       if(!fr.ok)continue;
       const data=await fr.json();
@@ -976,16 +1160,16 @@ async function ghPull(){
           added++;
         }
       });
-      newCols=[...new Set([...newCols,...(data.collections||[])])];
     }
-    collections=newCols;
     saveLib();renderLib();
     toast(`Pulled from ${libFiles.length} colleague(s) \u2014 ${added} new papers`);
-  }catch(e){toast(`GitHub: ${e.message}`)}
+  }catch(e){toast(`GitHub: ${(e.message||'Unknown error').slice(0,120)}`)}
 }
 
 async function ghPush(){
   if(!settings.ghToken||!settings.ghRepo){toast('Configure GitHub in Settings');return}
+  // Validate repo format (owner/repo) to prevent URL injection
+  if(!/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/.test(settings.ghRepo)){toast('Invalid repo format — use owner/repo');return}
   const branch=settings.ghBranch||'main';
   const filename=ghFilename();
   try{
@@ -998,7 +1182,15 @@ async function ghPush(){
       const r=await fetch(`https://api.github.com/repos/${settings.ghRepo}/contents/${filename}?ref=${branch}`,{headers:ghH()});
       if(r.ok){const d=await r.json();ghSha=d.sha}
     }
-    const payload=btoa(unescape(encodeURIComponent(JSON.stringify({library,collections,updatedAt:new Date().toISOString(),author:myName},null,2))));
+    // Strip any fields that should never leave this machine
+    const PRIV = ['note']; // notes are personal; remove if you want to share them, add fields here
+    const safeLib = library.map(p => {
+      const safe = { ...p };
+      // Never push API keys or tokens — belt-and-suspenders check
+      delete safe._apiKey; delete safe._token; delete safe._secret;
+      return safe;
+    });
+    const payload=btoa(unescape(encodeURIComponent(JSON.stringify({library:safeLib,updatedAt:new Date().toISOString(),author:myName},null,2))));
     const body={message:`library: ${myName} sync [${new Date().toISOString().slice(0,10)}]`,content:payload,branch};
     if(ghSha)body.sha=ghSha;
     const r=await fetch(`https://api.github.com/repos/${settings.ghRepo}/contents/${filename}`,{method:'PUT',headers:ghH(),body:JSON.stringify(body)});
@@ -1006,7 +1198,7 @@ async function ghPush(){
     ghSha=(await r.json()).content.sha;
     saveLib();
     toast(`Pushed as ${filename} \u2713`);
-  }catch(e){toast(`GitHub: ${e.message}`)}
+  }catch(e){toast(`GitHub: ${(e.message||'Unknown error').slice(0,120)}`)}
 }
 
 // ═══ SETTINGS UI ═════════════════════════════════════════════
@@ -1018,6 +1210,11 @@ function loadSettingsUI(){
   document.getElementById('set-ghtoken').value=settings.ghToken||'';
   document.getElementById('set-ghrepo').value=settings.ghRepo||'';
   document.getElementById('set-ghbranch').value=settings.ghBranch||'main';
+  document.getElementById('set-zotero-key').value=settings.zoteroKey||'';
+  document.getElementById('set-zotero-group').value=settings.zoteroGroup||'';
+  document.getElementById('set-drive-key').value=settings.driveKey||'';
+  document.getElementById('set-drive-folder').value=settings.driveFolder||'';
+  document.getElementById('set-storage-mode').value=settings.storageMode||'local';
   const s=document.getElementById('set-ai-status');
   s.className='status-badge '+(settings.apiKey?'status-ok':'status-no');
   s.textContent=settings.apiKey?`\u2713 Key configured (${settings.provider})`:'No key \u2014 AI features disabled';
@@ -1033,10 +1230,20 @@ function saveSettings(){
   settings.ghToken=document.getElementById('set-ghtoken').value.trim();
   settings.ghRepo=document.getElementById('set-ghrepo').value.trim();
   settings.ghBranch=document.getElementById('set-ghbranch').value.trim()||'main';
+  settings.zoteroKey=document.getElementById('set-zotero-key').value.trim();
+  const rawGroup = document.getElementById('set-zotero-group').value.trim();
+  const groupUrlMatch = rawGroup.match(/zotero\.org\/groups\/(\d+)/);
+  settings.zoteroGroup = groupUrlMatch ? groupUrlMatch[1] : rawGroup.replace(/[^\d]/g,'') || rawGroup;
+  document.getElementById('set-zotero-group').value = settings.zoteroGroup;
+  settings.driveKey=document.getElementById('set-drive-key').value.trim();
+  settings.driveFolder=document.getElementById('set-drive-folder').value.trim();
+  settings.storageMode=document.getElementById('set-storage-mode').value;
   saveCfg();loadSettingsUI();renderAiStatus();
   const hasGh=settings.ghToken&&settings.ghRepo;
   document.getElementById('gh-pull-btn').style.display=hasGh?'':'none';
   document.getElementById('gh-push-btn').style.display=hasGh?'':'none';
+  const hasZotero=!!(settings.zoteroKey&&settings.zoteroGroup);
+  document.getElementById('zotero-sync-btn').style.display=hasZotero?'':'none';
   document.getElementById('gh-bar').style.display=hasGh?'':'none';
   if(hasGh)document.getElementById('gh-bar').textContent=`\u{1f504} GitHub: ${settings.ghRepo} / ${settings.ghBranch}`;
   toast('Settings saved \u2713');
@@ -1068,7 +1275,7 @@ async function aiCall(messages,maxTokens=900){
       method:'POST',headers:{'x-api-key':settings.apiKey,'anthropic-version':'2023-06-01','Content-Type':'application/json'},
       body:JSON.stringify({model,max_tokens:maxTokens,temperature:.3,...(system?{system}:{}),messages:msgs}),
     });
-    if(!r.ok){const t=await r.text();throw new Error(`Anthropic ${r.status}: ${t}`)}
+    if(!r.ok){let t=await r.text().catch(()=>'');try{const j=JSON.parse(t);t=j.error?.message||j.message||t}catch(_){}throw new Error(`Anthropic ${r.status}: ${t.slice(0,120)}`)}
     return(await r.json()).content[0].text.trim();
   }
   const r=await fetch('https://api.openai.com/v1/chat/completions',{
@@ -1119,13 +1326,14 @@ async function sendChat(){
   appendMsg('user',q);chatHistory.push({role:'user',content:q});
   const context=library.map((p,i)=>{
     const year=p.published?.slice(0,4)||'?';
-    const note=p.note?`\n  Note: ${p.note}`:'';
+    const note=p.note?`\n  Note: ${p.note.slice(0,120)}`:''; // note sent to AI provider — trimmed
     return`[${i+1}] "${p.title}" \u2014 ${(p.authors||[]).slice(0,3).join(', ')} (${year}) [${(p.cats||[''])[0]}]${note}\n  Abstract: ${(p.summary||'').slice(0,450)}\u2026`;
   }).join('\n\n');
   const sys=`You are a research assistant with access to a scientist's personal paper library.\nLibrary (${library.length} papers):\n---\n${context}\n---\nReference papers by title or [number]. Be concise and precise.`;
   const loadEl=appendMsg('asst','Thinking\u2026',true);
   try{
-    const msgs=[{role:'system',content:sys},...chatHistory.slice(-8)];
+    if(chatHistory.length > 40) chatHistory = chatHistory.slice(-40); // prevent unbounded memory
+  const msgs=[{role:'system',content:sys},...chatHistory.slice(-8)];
     const answer=await aiCall(msgs);
     loadEl.querySelector('.cmsg-txt').textContent=answer;loadEl.querySelector('.cmsg-txt').classList.remove('thinking');
     chatHistory.push({role:'assistant',content:answer});
@@ -1142,214 +1350,486 @@ function appendMsg(role,txt,thinking=false){
 function clearChat(){document.getElementById('chat-win').innerHTML='<div class="chat-empty"><p>Try: <em>"What are the main themes?"</em></p></div>';chatHistory=[]}
 
 
-// ═══ TRENDS ═══════════════════════════════════════════════════
+// ═══ TRENDS — arXiv categories → S2 citation data ══════════════
+//
+// Pipeline:
+//   1. arXiv API  → fetch recent papers by proper cat: filter → get arXiv IDs + metadata
+//   2. S2 batch   → POST arXiv IDs → get citationCount per paper
+//   3. Compute citation velocity = citations / age_days, rank & display
+//   4. (optional) AI summary of top papers
 
-// Physics & condensed matter focused categories
+// arXiv category codes — proper cat: filter values
 const TREND_CATS = [
-  ['cond-mat','Condensed Matter (all)'],
-  ['cond-mat.supr-con','Superconductivity'],
-  ['cond-mat.str-el','Strongly Correlated'],
-  ['cond-mat.mes-hall','Mesoscale & Nanoscale'],
-  ['cond-mat.mtrl-sci','Materials Science'],
+  ['cond-mat',          'Condensed Matter (all)'],
+  ['cond-mat.supr-con', 'Superconductivity'],
+  ['cond-mat.str-el',   'Strongly Correlated Electrons'],
+  ['cond-mat.mes-hall', 'Mesoscale & Nanoscale'],
+  ['cond-mat.mtrl-sci', 'Materials Science'],
   ['cond-mat.quant-gas','Quantum Gases'],
-  ['physics.app-ph','Applied Physics'],
-  ['quant-ph','Quantum Physics'],
-  ['hep-th','High Energy Theory'],
-  ['astro-ph','Astrophysics'],
-  ['math-ph','Mathematical Physics'],
-  ['cs.LG','Machine Learning'],
-  ['cs.AI','Artificial Intelligence'],
+  ['cond-mat.dis-nn',   'Disordered Systems'],
+  ['quant-ph',          'Quantum Physics'],
+  ['physics.app-ph',    'Applied Physics'],
+  ['hep-th',            'High Energy Theory'],
+  ['math-ph',           'Mathematical Physics'],
+  ['cs.LG',             'Machine Learning'],
 ];
 
-// Populate trend category selector
 (function(){
   const sel = document.getElementById('trend-cat');
-  TREND_CATS.forEach(([val,label])=>{
+  // keep the first placeholder option if present
+  TREND_CATS.forEach(([val, label]) => {
     const o = document.createElement('option');
     o.value = val; o.textContent = label;
     sel.appendChild(o);
   });
 })();
 
-// Physics stopwords — common words that are not meaningful trends
-const STOPWORDS = new Set([
-  'the','and','for','with','from','that','this','are','has','have','been','into',
-  'its','can','two','new','via','non','based','using','model','models','quantum',
-  'study','results','show','shows','large','high','low','first','also','here',
-  'type','induced','driven','order','effect','effects','field','fields','state',
-  'states','system','systems','data','analysis','method','methods','approach',
-  'paper','work','our','their','these','which','both','well','present','over',
-  'under','out','all','one','than','not','but','more','such','between','within',
-  'across','regime','regime','limit','compared','measured','observed','found',
-  'further','show','shown','strongly','recently','however','while','where',
-]);
+// ── arXiv fetch helpers ───────────────────────────────────────
 
-// Extract meaningful 1-2 word phrases from text
-function extractPhrases(text){
-  const words = text.toLowerCase()
-    .replace(/[^a-z0-9\s\-]/g,' ')
-    .split(/\s+/)
-    .filter(w => w.length > 3 && !STOPWORDS.has(w) && !/^\d+$/.test(w));
-  
-  const phrases = [];
-  // Single words
-  words.forEach(w => phrases.push(w));
-  // Bigrams
-  for(let i=0;i<words.length-1;i++){
-    if(!STOPWORDS.has(words[i]) && !STOPWORDS.has(words[i+1])){
-      phrases.push(words[i]+' '+words[i+1]);
+function arxivDateStr(daysAgo){
+  const d = new Date();
+  d.setDate(d.getDate() - daysAgo);
+  // arXiv submittedDate format: YYYYMMDDHHMMSS
+  const y  = d.getFullYear();
+  const mo = String(d.getMonth()+1).padStart(2,'0');
+  const da = String(d.getDate()).padStart(2,'0');
+  return `${y}${mo}${da}000000`;
+}
+
+// Fetch up to maxResults papers from arXiv for a given cat and date range
+// Returns array of { arxivId, title, authors, published, summary }
+async function fetchArxivCat(cat, fromTS, toTS, maxResults=100){
+  const q = `cat:${cat} AND submittedDate:[${fromTS} TO ${toTS}]`;
+  const params = new URLSearchParams({
+    search_query: q,
+    start: 0,
+    max_results: maxResults,
+    sortBy: 'submittedDate',
+    sortOrder: 'descending'
+  });
+  const url = `https://export.arxiv.org/api/query?${params}`;
+  const xml = await fetchArxiv(url);
+  const papers = parseXML(xml);
+  return papers.map(p => ({
+    arxivId:   p.id.replace(/v\d+$/, ''), // strip version suffix
+    title:     p.title,
+    authors:   p.authors,
+    published: p.published,
+    summary:   p.summary,
+  }));
+}
+
+// ── Semantic Scholar batch helpers ────────────────────────────
+
+const S2_BASE = 'https://api.semanticscholar.org/graph/v1';
+
+async function s2Fetch(url, options={}){
+  if(window.electronAPI?.fetchURL){
+    const result = await window.electronAPI.fetchURL(url);
+    if(typeof result === 'string') return JSON.parse(result);
+    if(result && typeof result === 'object'){
+      // fetchURL returns { ok, text } — handle both shapes
+      if('text' in result) return JSON.parse(result.text);
+      return result;
+    }
+    throw new Error('Empty IPC response');
+  }
+  const r = await fetch(url, options);
+  if(!r.ok) throw new Error(`S2 ${r.status}: ${await r.text().catch(()=>'')}`);
+  return r.json();
+}
+
+// POST batch of arXiv IDs to S2 → returns map { arxivId → citationCount }
+// S2 batch accepts up to 500 IDs per request
+async function s2BatchCitations(arxivIds){
+  if(!arxivIds.length) return {};
+  const ids = arxivIds.map(id => `ArXiv:${id}`);
+
+  // S2 batch endpoint requires POST with JSON body
+  // In Electron we must go through IPC which only does GET right now,
+  // so fall back to per-paper GET requests (rate-limited, chunked)
+  const citMap = {};
+
+  if(window.electronAPI?.fetchURL){
+    // IPC only supports GET — query one at a time but in parallel chunks
+    const CHUNK = 10;
+    for(let i = 0; i < arxivIds.length; i += CHUNK){
+      const chunk = arxivIds.slice(i, i+CHUNK);
+      await Promise.all(chunk.map(async arxivId => {
+        try {
+          const url = `${S2_BASE}/paper/ArXiv:${arxivId}?fields=citationCount,externalIds`;
+          const data = await s2Fetch(url);
+          if(data?.citationCount !== undefined) citMap[arxivId] = data.citationCount;
+        } catch(_){ citMap[arxivId] = 0; }
+      }));
+    }
+  } else {
+    // Browser: can do real POST batch
+    try {
+      const r = await fetch(`${S2_BASE}/paper/batch?fields=citationCount,externalIds`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids })
+      });
+      if(r.ok){
+        const data = await r.json();
+        (data || []).forEach((p, i) => {
+          if(p && arxivIds[i] !== undefined) citMap[arxivIds[i]] = p.citationCount ?? 0;
+        });
+      }
+    } catch(_){
+      // fallback: individual requests
+      await Promise.all(arxivIds.map(async arxivId => {
+        try {
+          const url = `${S2_BASE}/paper/ArXiv:${arxivId}?fields=citationCount`;
+          const data = await s2Fetch(url);
+          if(data?.citationCount !== undefined) citMap[arxivId] = data.citationCount;
+        } catch(_){ citMap[arxivId] = 0; }
+      }));
     }
   }
-  return phrases;
+  return citMap;
 }
 
-function dateToArxivTS(d, end=false){
-  const y=d.getFullYear();
-  const mo=String(d.getMonth()+1).padStart(2,'0');
-  const day=String(d.getDate()).padStart(2,'0');
-  return `${y}${mo}${day}${end?'235959':'000000'}`;
-}
+// ── Velocity scoring ──────────────────────────────────────────
 
-async function fetchTrendBatch(cat, fromTS, toTS, start=0, maxResults=200){
-  const q = `cat:${cat} AND submittedDate:[${fromTS} TO ${toTS}]`;
-  const params = new URLSearchParams({search_query:q, start, max_results:maxResults, sortBy:'submittedDate', sortOrder:'descending'});
-  const url = `https://export.arxiv.org/api/query?${params}`;
-  const res = await fetchArxiv(url);
-  return res;
-}
-
-function countFrequency(texts){
-  const freq = {};
-  texts.forEach(text => {
-    const phrases = extractPhrases(text);
-    const seen = new Set();
-    phrases.forEach(p => {
-      if(!seen.has(p)){
-        freq[p] = (freq[p]||0) + 1;
-        seen.add(p);
-      }
-    });
+function computeVelocity(papers){
+  const now = new Date();
+  return papers.map(p => {
+    const pub = p.published ? new Date(p.published) : now;
+    const ageDays = Math.max(1, (now - pub) / 86400000);
+    const cit = p.citationCount || 0;
+    const rawVelocity = cit / ageDays;
+    // cit/sqrt(ageDays) is age-fair: doesn't penalise recent papers or inflate old ones
+    const score = cit / Math.sqrt(Math.max(1, ageDays));
+    return { ...p, ageDays: Math.round(ageDays), velocity: rawVelocity, score };
   });
-  return freq;
 }
+
+// ── AI summary ────────────────────────────────────────────────
+
+async function aiSummariseTrends(papers, catLabel){
+  const provider = settings.aiProvider || 'anthropic';
+  const apiKey   = settings.aiApiKey;
+  if(!apiKey) throw new Error('No API key — add one in Settings → AI tab.');
+
+  const titles = papers.slice(0,20)
+    .map((p,i) => `${i+1}. ${p.title} [${p.citationCount||0} citations, ${p.ageDays}d old]`)
+    .join('\n');
+
+  const prompt = `These are the highest citation-velocity papers recently posted to arXiv in ${catLabel}.\n\nIn 3–4 short paragraphs, identify: (1) the dominant emerging themes, (2) specific materials, techniques or phenomena drawing the most attention, (3) what these papers collectively suggest about where the field is heading. Be concrete — name things. End with one sentence on what to watch in the coming weeks.\n\nPapers:\n${titles}`;
+
+  if(provider === 'anthropic'){
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'x-api-key':apiKey, 'anthropic-version':'2023-06-01' },
+      body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:700,
+        messages:[{ role:'user', content:prompt }] })
+    });
+    const d = await r.json();
+    if(d.error) throw new Error(d.error.message);
+    return d.content?.[0]?.text || '';
+  } else {
+    const model = settings.aiModel || 'gpt-4o-mini';
+    const r = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+apiKey },
+      body: JSON.stringify({ model, max_tokens:700,
+        messages:[{ role:'user', content:prompt }] })
+    });
+    const d = await r.json();
+    if(d.error) throw new Error(d.error.message);
+    return d.choices?.[0]?.message?.content || '';
+  }
+}
+
+// ── Render helpers ────────────────────────────────────────────
+
+function buildArxivUrl(arxivId){ return `https://arxiv.org/abs/${arxivId}`; }
+function buildPdfUrl(arxivId)  { return `https://arxiv.org/pdf/${arxivId}`;  }
+
+function renderPapersTable(papers, mode){
+  const isVelocity = mode === 'velocity';
+  const gridCols   = isVelocity ? '1fr 72px 64px 84px' : '1fr 110px';
+
+  const headerRight = isVelocity
+    ? `<div style="text-align:right">Cited</div><div style="text-align:right">Age</div><div style="text-align:right">Score</div>`
+    : `<div style="text-align:right">Published</div>`;
+
+  const rows = papers.slice(0,30).map((p,i) => {
+    const url     = buildArxivUrl(p.arxivId);
+    const pdf     = buildPdfUrl(p.arxivId);
+    const authors = (p.authors||[]).slice(0,2).map(a => (a.name||a).split(' ').pop()).filter(Boolean).join(', ');
+    const cit     = p.citationCount ?? 0;
+    const vel     = p.velocity;
+    const score   = p.score || 0;
+    const scoreStr = score >= 10 ? score.toFixed(0) : score >= 1 ? score.toFixed(1) : score.toFixed(2);
+    const velStr  = vel >= 1 ? vel.toFixed(1)+'/d' : (vel*30) >= 1 ? (vel*30).toFixed(1)+'/mo' : '<1/mo';
+    const velCol  = score > 5 ? 'var(--acc)' : score > 1 ? 'var(--grn)' : 'var(--ink3)';
+    const pubDate = (p.published||'').slice(0,10);
+
+    const rightCols = isVelocity
+      ? `<div style="text-align:right;font-size:.72rem;color:var(--ink)">${cit}</div>
+         <div style="text-align:right;font-size:.72rem;color:var(--ink3)">${p.ageDays}d</div>
+         <div style="text-align:right;font-size:.72rem;color:${velCol};font-weight:600" title="${cit} cit · ${velStr}">${scoreStr}</div>`
+      : `<div style="text-align:right;font-size:.68rem;color:var(--ink3)">${pubDate}</div>`;
+
+    return `<div style="display:grid;grid-template-columns:${gridCols};padding:.55rem .8rem;border-bottom:1px solid var(--bdr);${i%2===0?'':'background:var(--sur)'}">
+      <div>
+        <div style="font-size:.72rem;line-height:1.35;margin-bottom:.2rem">
+          <a href="${url}" target="_blank" style="color:var(--ink);text-decoration:none"
+             onmouseover="this.style.color='var(--acc)'" onmouseout="this.style.color='var(--ink)'">${p.title}</a>
+        </div>
+        <div style="font-size:.6rem;color:var(--ink3)">
+          ${authors}${authors?' · ':''}${pubDate}
+          · <a href="${pdf}" target="_blank" style="color:var(--acc);text-decoration:none">PDF</a>
+          · <span style="cursor:pointer;color:var(--acc)" onclick="trendToSearch('${p.arxivId}')">search arXiv</span>
+        </div>
+      </div>
+      ${rightCols}
+    </div>`;
+  }).join('');
+
+  return `<div style="border:1px solid var(--bdr);overflow:hidden">
+    <div style="display:grid;grid-template-columns:${gridCols};background:var(--sur2);padding:.45rem .8rem;font-size:.58rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);border-bottom:1px solid var(--bdr)">
+      <div>Paper</div>${headerRight}
+    </div>
+    ${rows}
+  </div>`;
+}
+
+function renderVolumeChart(papers, days, catLabel){
+  const numWeeks = Math.max(4, Math.ceil(days/7));
+  const today = new Date();
+  const weeks = [];
+  for(let i = numWeeks-1; i >= 0; i--){
+    const wEnd   = new Date(today); wEnd.setDate(today.getDate() - i*7);
+    const wStart = new Date(wEnd);  wStart.setDate(wEnd.getDate() - 7);
+    weeks.push({
+      label:  wStart.toISOString().slice(5,10),
+      start:  wStart.toISOString().slice(0,10),
+      end:    wEnd.toISOString().slice(0,10),
+      count:  0, papers: []
+    });
+  }
+  papers.forEach(p => {
+    const d = (p.published||'').slice(0,10);
+    const wk = weeks.find(w => d >= w.start && d < w.end);
+    if(wk){ wk.count++; wk.papers.push(p); }
+  });
+  const maxCount = Math.max(1, ...weeks.map(w => w.count));
+  window._volumeWeeks = weeks;
+
+  const bars = weeks.map(w => `
+    <div style="display:flex;align-items:center;gap:.8rem;margin-bottom:.4rem">
+      <div style="font-size:.63rem;color:var(--ink3);width:48px;flex-shrink:0">${w.label}</div>
+      <div style="flex:1;background:var(--bdr);height:16px;cursor:pointer" title="${w.count} papers"
+           onclick="showWeekPapers('${w.label}')">
+        <div style="background:var(--acc);height:100%;width:${Math.round(w.count/maxCount*100)}%;transition:width .3s"></div>
+      </div>
+      <div style="font-size:.65rem;color:var(--ink);width:28px;text-align:right;flex-shrink:0">${w.count}</div>
+    </div>`).join('');
+
+  return `<div style="border:1px solid var(--bdr);padding:1.2rem;background:var(--sur);margin-bottom:1.2rem">
+    <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);margin-bottom:.9rem">
+      Papers per week · ${catLabel} · click a bar to see papers
+    </div>
+    ${bars}
+  </div>
+  <div id="week-papers-box"></div>`;
+}
+
+function showWeekPapers(label){
+  const box = document.getElementById('week-papers-box');
+  if(!box || !window._volumeWeeks) return;
+  const wk = window._volumeWeeks.find(w => w.label === label);
+  if(!wk || !wk.papers.length){ box.innerHTML = '<div style="font-size:.7rem;color:var(--ink3);padding:.5rem">No papers in this week.</div>'; return; }
+  box.innerHTML = `<div style="border:1px solid var(--bdr);overflow:hidden">
+    <div style="background:var(--sur2);padding:.45rem .8rem;font-size:.62rem;color:var(--ink3);border-bottom:1px solid var(--bdr)">Week of ${label} — ${wk.papers.length} paper${wk.papers.length!==1?'s':''}</div>
+    ${wk.papers.map((p,i) => {
+      const url = buildArxivUrl(p.arxivId);
+      const authors = (p.authors||[]).slice(0,2).map(a=>(a.name||a).split(' ').pop()).filter(Boolean).join(', ');
+      return `<div style="padding:.55rem .8rem;border-bottom:1px solid var(--bdr);${i%2===0?'':'background:var(--sur)'}">
+        <div style="font-size:.72rem"><a href="${url}" target="_blank" style="color:var(--ink);text-decoration:none"
+           onmouseover="this.style.color='var(--acc)'" onmouseout="this.style.color='var(--ink)'">${p.title}</a></div>
+        <div style="font-size:.6rem;color:var(--ink3)">${authors}${authors?' · ':''}${(p.published||'').slice(0,10)}</div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+// ── Main doTrends ─────────────────────────────────────────────
 
 async function doTrends(){
-  const cat = document.getElementById('trend-cat').value;
-  const days = parseInt(document.getElementById('trend-window').value);
-  const btn = document.getElementById('trend-btn');
-  const status = document.getElementById('trend-status');
-  const results = document.getElementById('trend-results');
-  
+  const customVal = (document.getElementById('trend-custom')?.value || '').trim();
+  const catCode   = document.getElementById('trend-cat').value;
+  const days      = parseInt(document.getElementById('trend-window').value);
+  const mode      = document.getElementById('trend-mode')?.value || 'velocity';
+  const btn       = document.getElementById('trend-btn');
+  const status    = document.getElementById('trend-status');
+  const results   = document.getElementById('trend-results');
+
+  // resolve category label for display
+  const catEntry  = TREND_CATS.find(([v]) => v === catCode);
+  const catLabel  = catEntry ? catEntry[1] : (customVal || catCode);
+
+  // arXiv query: custom keyword search OR category filter
+  // custom text → keyword in title/abstract; category → cat: filter
+  const useCustom = !!customVal;
+
+  if(!customVal && !catCode){
+    results.innerHTML = '<div class="blank"><div class="blank-i">◌</div><div class="blank-t">Pick a category or type a field</div></div>';
+    return;
+  }
+
   btn.disabled = true;
-  btn.textContent = 'Analysing…';
+  btn.textContent = 'Fetching…';
   results.innerHTML = '';
+  status.textContent = '';
 
   try {
-    const now = new Date();
-    
-    // Recent window
-    const recentFrom = new Date(now);
-    recentFrom.setDate(recentFrom.getDate() - days);
-    
-    // Baseline window (3x as long, ending where recent starts)
-    const baselineFrom = new Date(recentFrom);
-    baselineFrom.setDate(baselineFrom.getDate() - (days * 3));
-    const baselineTo = new Date(recentFrom);
-    baselineTo.setDate(baselineTo.getDate() - 1);
+    // ── Step 1: arXiv → get papers with proper category/keyword filter ──
+    const fromTS = arxivDateStr(days);
+    const toTS   = arxivDateStr(0);
 
-    const recentFromTS = dateToArxivTS(recentFrom);
-    const recentToTS = dateToArxivTS(now, true);
-    const baselineFromTS = dateToArxivTS(baselineFrom);
-    const baselineToTS = dateToArxivTS(baselineTo, true);
+    let arxivQuery;
+    if(useCustom){
+      // keyword search in title+abstract with date filter
+      arxivQuery = `(ti:"${customVal}" OR abs:"${customVal}") AND submittedDate:[${fromTS} TO ${toTS}]`;
+    } else {
+      arxivQuery = `cat:${catCode} AND submittedDate:[${fromTS} TO ${toTS}]`;
+    }
 
-    status.textContent = `Fetching recent papers (last ${days} days)…`;
-    const recentXML = await fetchTrendBatch(cat, recentFromTS, recentToTS, 0, 200);
-    const recentPapers = parseXML(recentXML);
-    
-    status.textContent = `Fetching baseline papers (previous ${days*3} days)…`;
-    const baselineXML = await fetchTrendBatch(cat, baselineFromTS, baselineToTS, 0, 200);
-    const baselinePapers = parseXML(baselineXML);
+    status.textContent = `Step 1/2 — fetching arXiv papers (last ${days} days)…`;
 
-    if(!recentPapers.length){
-      results.innerHTML = '<div class="blank"><div class="blank-i">◌</div><div class="blank-t">No papers found</div><div class="blank-s">Try a different category or wider window.</div></div>';
+    const params = new URLSearchParams({
+      search_query: arxivQuery,
+      start: 0,
+      max_results: mode === 'volume' ? 200 : (days >= 180 ? 200 : 100),
+      sortBy: 'submittedDate',
+      sortOrder: 'descending'
+    });
+    const xml     = await fetchArxiv(`https://export.arxiv.org/api/query?${params}`);
+    const papers  = parseXML(xml);
+
+    if(!papers.length){
+      results.innerHTML = '<div class="blank"><div class="blank-i">◌</div><div class="blank-t">No papers found</div><div class="blank-s">Try a wider time window or different category.</div></div>';
       return;
     }
 
-    status.textContent = `Analysing ${recentPapers.length} recent + ${baselinePapers.length} baseline papers…`;
+    // normalise arXiv IDs — strip version suffix
+    const enriched = papers.map(p => ({
+      arxivId:  p.id.replace('http://arxiv.org/abs/','').replace('https://arxiv.org/abs/','').replace(/v\d+$/,''),
+      title:    p.title,
+      authors:  p.authors,
+      published:p.published,
+      summary:  p.summary,
+      citationCount: 0,
+      ageDays: 1,
+      velocity: 0,
+    }));
 
-    // Count frequencies
-    const recentTexts = recentPapers.map(p => p.title + ' ' + p.summary);
-    const baselineTexts = baselinePapers.map(p => p.title + ' ' + p.summary);
-    
-    const recentFreq = countFrequency(recentTexts);
-    const baselineFreq = countFrequency(baselineTexts);
+    // ── Step 2: S2 → get citation counts for all arXiv IDs ──
+    if(mode !== 'recent'){
+      status.textContent = `Step 2/2 — fetching citation data from Semantic Scholar (${enriched.length} papers)…`;
+      btn.textContent = 'Fetching S2…';
 
-    // Calculate trend score: compare recent rate vs baseline rate
-    const recentTotal = recentPapers.length || 1;
-    const baselineTotal = (baselinePapers.length || 1) * (1/3); // normalize to same window
-    
-    const trends = [];
-    Object.entries(recentFreq).forEach(([phrase, rCount]) => {
-      if(rCount < 3) return; // ignore rare terms
-      if(phrase.length < 5) return; // ignore very short terms
-      const bCount = (baselineFreq[phrase] || 0) / 3; // normalize baseline
-      const recentRate = rCount / recentTotal;
-      const baselineRate = bCount / baselineTotal;
-      const ratio = baselineRate > 0.001 ? recentRate / baselineRate : recentRate * 50;
-      const score = ratio * Math.log(rCount + 1); // weight by volume too
-      trends.push({ phrase, rCount, bCount: Math.round(bCount), ratio: Math.round(ratio*10)/10, score });
-    });
+      const arxivIds = enriched.map(p => p.arxivId);
+      const citMap   = await s2BatchCitations(arxivIds);
 
-    // Also find brand new terms (not in baseline at all)
-    const newTerms = trends.filter(t => t.bCount === 0 && t.rCount >= 3);
-    
-    // Sort by score
-    trends.sort((a,b) => b.score - a.score);
-    const top = trends.slice(0, 30);
+      enriched.forEach(p => {
+        p.citationCount = citMap[p.arxivId] ?? 0;
+      });
+    }
 
-    status.textContent = `Found trends in ${recentPapers.length} papers from the last ${days} days`;
+    // ── Step 3: score & sort ──
+    const scored = computeVelocity(enriched);
 
-    // Render
+    let displayPapers;
+    if(mode === 'velocity'){
+      displayPapers = scored
+        .filter(p => p.citationCount > 0)
+        .sort((a,b) => b.score - a.score);
+      if(!displayPapers.length){
+        // fall back to showing all, sorted by date, with note
+        displayPapers = scored.sort((a,b) => new Date(b.published) - new Date(a.published));
+        status.textContent = `No citations found yet for these papers — showing most recent instead`;
+      }
+    } else if(mode === 'recent'){
+      displayPapers = scored.sort((a,b) => new Date(b.published) - new Date(a.published));
+    } else {
+      displayPapers = scored; // volume uses all
+    }
+
+    // ── Step 4: render ──
+    const hasKey   = !!(settings.aiApiKey);
+    const modeDesc = mode==='velocity' ? 'Ranked by citation velocity' : mode==='recent' ? 'Most recent' : 'Publication volume';
+
     let html = `
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:2rem">
-        <div style="background:var(--sur);border:1px solid var(--bdr);padding:1.2rem">
-          <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);margin-bottom:.8rem">📈 Rising Topics</div>
-          ${top.filter(t=>t.bCount>0).slice(0,15).map((t,i) => `
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid var(--bdr);cursor:pointer"
-                 onclick="searchTrend('${t.phrase.replace(/'/g,"\'")}')">
-              <div style="font-size:.75rem;color:var(--ink)">${t.phrase}</div>
-              <div style="display:flex;align-items:center;gap:.6rem;flex-shrink:0">
-                <div style="font-size:.62rem;color:var(--ink3)">${t.rCount} papers</div>
-                <div style="font-size:.62rem;background:${t.ratio>3?'var(--acc)':t.ratio>1.5?'var(--grn)':'var(--acc2)'};color:#fff;padding:.15rem .4rem">
-                  ×${t.ratio}
-                </div>
-              </div>
-            </div>`).join('')}
+      <div style="margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem">
+        <div style="font-size:.65rem;color:var(--ink3)">
+          ${modeDesc} · <strong style="color:var(--ink)">${papers.length}</strong> papers · ${catLabel} · last ${days}d
+          · arXiv + <span style="color:var(--acc)">S2 citations</span>
         </div>
-        <div style="background:var(--sur);border:1px solid var(--bdr);padding:1.2rem">
-          <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);margin-bottom:.8rem">🔥 Breakout Terms <span style="font-size:.55rem">(new this period)</span></div>
-          ${newTerms.sort((a,b)=>b.rCount-a.rCount).slice(0,15).map(t => `
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid var(--bdr);cursor:pointer"
-                 onclick="searchTrend('${t.phrase.replace(/'/g,"\'")}')">
-              <div style="font-size:.75rem;color:var(--ink)">${t.phrase}</div>
-              <div style="font-size:.62rem;color:var(--ink3)">${t.rCount} papers</div>
-            </div>`).join('')}
-        </div>
+        ${mode!=='volume' && hasKey
+          ? `<button onclick="doAiSummary()" id="ai-sum-btn" style="font-size:.65rem;padding:.28rem .75rem;background:var(--acc);color:#fff;border:0;cursor:pointer">✦ AI Summary</button>`
+          : mode!=='volume' ? `<span style="font-size:.62rem;color:var(--ink3);font-style:italic">Add API key for AI summary</span>` : ''}
       </div>
-      <div style="font-size:.62rem;color:var(--ink3);text-align:center">
-        Click any term to search for it in arXiv · Based on ${recentPapers.length} papers · 
-        Compared to ${baselinePapers.length} papers from the previous ${days*3} days
+      <div id="ai-summary-box"></div>`;
+
+    if(mode === 'volume'){
+      html += renderVolumeChart(displayPapers, days, catLabel);
+    } else {
+      html += renderPapersTable(displayPapers, mode);
+      html += `<div style="margin-top:.7rem;font-size:.6rem;color:var(--ink3);text-align:center">
+        Source: arXiv (${arxivQuery.slice(0,60)}…) · Citations: Semantic Scholar
+        ${mode==='velocity' ? ' · Score = cit ÷ √age · hover Score column for rate' : ''}
       </div>`;
+    }
 
     results.innerHTML = html;
+    status.textContent = mode==='velocity'
+      ? `Done · ${displayPapers.length} papers with citations · top score: ${displayPapers[0]?.score?.toFixed(1)||'—'}`
+      : `Done · ${displayPapers.length} papers`;
+
+    window._trendPapers = displayPapers;
+    window._trendQuery  = catLabel;
 
   } catch(e) {
     status.textContent = '';
-    results.innerHTML = `<div class="blank"><div class="blank-i">⚠</div><div class="blank-t">Analysis failed</div><div class="blank-s">${e.message}</div></div>`;
+    results.innerHTML = `<div class="blank"><div class="blank-i">⚠</div><div class="blank-t">Analysis failed</div><div class="blank-s">${esc(e.message||"")}</div></div>`;
+    console.error('Trends error:', e);
   } finally {
-    btn.disabled = false;
+    btn.disabled    = false;
     btn.textContent = 'Analyse';
   }
+}
+
+async function doAiSummary(){
+  const btn = document.getElementById('ai-sum-btn');
+  const box = document.getElementById('ai-summary-box');
+  if(!btn || !box) return;
+  btn.disabled    = true;
+  btn.textContent = '✦ Thinking…';
+  box.innerHTML   = `<div style="border:1px solid var(--acc);padding:.8rem 1rem;margin-bottom:1rem;font-size:.72rem;color:var(--ink3);font-style:italic">Generating AI summary…</div>`;
+  try {
+    const text = await aiSummariseTrends(window._trendPapers||[], window._trendQuery||'condensed matter physics');
+    box.innerHTML = `
+      <div style="border:1px solid var(--acc);padding:1rem;margin-bottom:1rem;background:var(--sur)">
+        <div style="font-size:.58rem;text-transform:uppercase;letter-spacing:.1em;color:var(--acc);margin-bottom:.6rem">✦ AI Trend Summary</div>
+        <div style="font-size:.75rem;color:var(--ink);line-height:1.65;white-space:pre-wrap">${text}</div>
+      </div>`;
+  } catch(e) {
+    box.innerHTML = `<div style="border:1px solid #c00;padding:.7rem 1rem;margin-bottom:1rem;font-size:.72rem;color:#c00">AI summary failed: ${esc(e.message||"")}</div>`;
+  } finally {
+    btn.disabled    = false;
+    btn.textContent = '✦ AI Summary';
+  }
+}
+
+function trendToSearch(arxivId){
+  // open the paper directly on arXiv
+  window.open(`https://arxiv.org/abs/${arxivId}`, '_blank');
 }
 
 function searchTrend(phrase){
@@ -1358,11 +1838,554 @@ function searchTrend(phrase){
   setTimeout(doSearch, 200);
 }
 
+// ═══ ZOTERO INTEGRATION ════════════════════════════════════════
+
+const ZOTERO_BASE = 'https://api.zotero.org';
+
+async function zoteroFetch(path, options={}){
+  const key = settings.zoteroKey;
+  if(!key) throw new Error('No Zotero API key configured in Settings.');
+  const headers = { 'Zotero-API-Key': key, 'Zotero-API-Version': '3', ...( options.headers||{}) };
+  const url = ZOTERO_BASE + path;
+
+  // In Electron: IPC only does GET, so for POST we use fetch directly
+  // (Zotero API supports CORS, so browser fetch works fine)
+  const r = await fetch(url, { ...options, headers });
+  if(!r.ok){
+    const txt = await r.text().catch(()=>'');
+    throw new Error(`Zotero ${r.status}: ${txt.slice(0,200)}`);
+  }
+  const ct = r.headers.get('content-type')||'';
+  if(ct.includes('json')) return r.json();
+  return r.text();
+}
+
+async function testZotero(){
+  const st = document.getElementById('set-zotero-status');
+  st.textContent = 'Testing…'; st.style.color = 'var(--ink3)';
+  try {
+    const key   = document.getElementById('set-zotero-key').value.trim();
+    const group = document.getElementById('set-zotero-group').value.trim();
+    if(!key)   throw new Error('Enter your Zotero API key first.');
+    if(!group) throw new Error('Enter your Group ID first (the number in the group URL).');
+    // Auto-extract number if user pasted a full URL
+    const groupMatch = group.match(/zotero\.org\/groups\/(\d+)/);
+    let resolvedGroup = groupMatch ? groupMatch[1] : group;
+    if(groupMatch){
+      document.getElementById('set-zotero-group').value = resolvedGroup;
+    }
+    if(!/^\d+$/.test(resolvedGroup)) throw new Error('Group ID must be a number — paste just the number from the URL, e.g. 5823491');
+
+    const headers = { 'Zotero-API-Key': key, 'Zotero-API-Version': '3' };
+
+    // Step 1 — verify the key itself works (check personal library)
+    const keyCheck = await fetch(`${ZOTERO_BASE}/keys/${key}`, { headers });
+    if(keyCheck.status === 403 || keyCheck.status === 404){
+      throw new Error('API key not recognised — copy it again from zotero.org/settings/keys');
+    }
+    const keyData = keyCheck.ok ? await keyCheck.json() : null;
+
+    // Step 2 — verify group exists and key has access
+    const groupCheck = await fetch(`${ZOTERO_BASE}/groups/${resolvedGroup}`, { headers });
+    if(groupCheck.status === 404){
+      throw new Error(`Group ID ${resolvedGroup} not found — check the number in your group's URL`);
+    }
+    if(groupCheck.status === 403){
+      throw new Error(`API key has no access to group ${resolvedGroup} — enable group access when creating the key`);
+    }
+    if(!groupCheck.ok){
+      throw new Error(`Group check failed: HTTP ${groupCheck.status}`);
+    }
+    const groupData = await groupCheck.json();
+    const groupName = groupData.data?.name || groupData.name || resolvedGroup;
+
+    // Step 3 — count items
+    const items = await fetch(`${ZOTERO_BASE}/groups/${resolvedGroup}/items?limit=1`, { headers });
+    const total = items.headers.get('Total-Results') || '0';
+
+    st.innerHTML = `✓ Connected to "<strong>${esc(groupName||"")}</strong>" · ${total} item${total!=='1'?'s':''}`;
+    st.style.color = 'var(--grn,#2a7)';
+  } catch(e) {
+    st.textContent = `✗ ${e.message}`;
+    st.style.color = '#c00';
+  }
+}
+
+// Convert an arXiv paper object to a Zotero item
+function paperToZoteroItem(p){
+  const authors = (p.authors||[]).map(a => {
+    const name = typeof a === 'string' ? a : (a.name || a.toString() || '');
+    const parts = name.trim().split(' ').filter(Boolean);
+    if(parts.length === 0) return null;
+    return { creatorType: 'author', firstName: parts.slice(0,-1).join(' '), lastName: parts[parts.length-1] };
+  }).filter(Boolean);
+  const arxivId = p.arxivId || p.id || '';
+  return {
+    itemType: 'preprint',
+    title: p.title || '',
+    creators: authors,
+    abstractNote: p.summary || p.abstract || '',
+    date: (p.published||p.date||'').slice(0,10),
+    url: `https://arxiv.org/abs/${arxivId}`,
+    repository: 'arXiv',
+    archiveID: `arXiv:${arxivId}`,
+    DOI: '',
+    tags: (p.tags||[]).map(t => ({ tag: t })),
+    extra: `arXiv: ${arxivId}\nSaved by: ${settings.username||'unknown'}\nSaved at: ${new Date().toISOString().slice(0,10)}`,
+  };
+}
+
+async function saveToZotero(p){
+  const group = settings.zoteroGroup;
+  if(!group) throw new Error('No Zotero Group ID in Settings.');
+  const item = paperToZoteroItem(p);
+  const data = await zoteroFetch(`/groups/${group}/items`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify([item])
+  });
+  // Returns { successful: { "0": { key, version, data } }, ... }
+  const keys = Object.values(data.successful || {});
+  if(!keys.length) throw new Error('Zotero returned no item key — check permissions.');
+  return keys[0].key; // Zotero item key
+}
+
+async function removeFromZotero(zoteroKey){
+  if(!zoteroKey || !settings.zoteroGroup) return;
+  // Need current version first
+  try {
+    const item = await zoteroFetch(`/groups/${settings.zoteroGroup}/items/${zoteroKey}`);
+    const version = item.version;
+    await zoteroFetch(`/groups/${settings.zoteroGroup}/items/${zoteroKey}`, {
+      method: 'DELETE',
+      headers: { 'If-Unmodified-Since-Version': String(version) }
+    });
+  } catch(e) { console.warn('Zotero delete failed:', e.message); }
+}
+
+async function fetchZoteroLibrary(){
+  const group = settings.zoteroGroup;
+  if(!group) return [];
+  const data = await zoteroFetch(`/groups/${group}/items?itemType=preprint&limit=100&sort=dateAdded&direction=desc`);
+  return (data||[]).map(item => {
+    const d = item.data || {};
+    const arxivId = (d.archiveID||'').replace('arXiv:','') || (d.url||'').replace('https://arxiv.org/abs/','');
+    return {
+      arxivId,
+      title: d.title||'',
+      authors: (d.creators||[]).map(c => ({ name: [c.firstName, c.lastName].filter(Boolean).join(' ') })),
+      published: d.date||'',
+      summary: d.abstractNote||'',
+      note: d.note||'',
+      savedAt: d.dateAdded||'',
+      savedBy: (d.extra||'').match(/Saved by: (.+)/)?.[1]||'',
+      zoteroKey: item.key,
+      driveUrl: (d.extra||'').match(/Drive PDF: (.+)/)?.[1]||'',
+    };
+  });
+}
+
+// ═══ ZOTERO SYNC ══════════════════════════════════════════════
+
+async function syncFromZotero(){
+  if(!settings.zoteroKey || !settings.zoteroGroup){
+    toast('Configure Zotero in Settings first'); return;
+  }
+  const btn = document.getElementById('zotero-sync-btn');
+  btn.disabled = true; btn.textContent = '⟳ Syncing…';
+  try {
+    toast('Fetching Zotero library…', 6000);
+    const remote = await fetchZoteroLibrary();
+    if(!remote.length){ toast('No papers found in Zotero group'); return; }
+
+    let added = 0, updated = 0;
+    remote.forEach(p => {
+      if(!p.arxivId) return;
+      const existing = library.find(x => x.arxivId === p.arxivId);
+      if(!existing){
+        // New paper — add it
+        library.push({ ...p, note: p.note||'', savedAt: p.savedAt||new Date().toISOString() });
+        added++;
+      } else {
+        // Already have it — update Zotero key and Drive URL if missing
+        if(!existing.zoteroKey && p.zoteroKey){ existing.zoteroKey = p.zoteroKey; updated++; }
+        if(!existing.driveUrl  && p.driveUrl) { existing.driveUrl  = p.driveUrl;  updated++; }
+      }
+    });
+
+    saveLib(); renderLib();
+    toast(`Zotero sync done — ${added} new, ${updated} updated ✓`);
+  } catch(e) {
+    toast(`Zotero sync failed: ${e.message.slice(0,100)}`, 5000);
+  } finally {
+    btn.disabled = false; btn.textContent = '⟳ Sync Zotero';
+  }
+}
+
+// ═══ GOOGLE DRIVE INTEGRATION ══════════════════════════════════
+
+const DRIVE_UPLOAD = 'https://www.googleapis.com/upload/drive/v3/files';
+const DRIVE_FILES  = 'https://www.googleapis.com/drive/v3/files';
+const SHEETS_BASE  = 'https://sheets.googleapis.com/v4/spreadsheets';
+
+async function testDrive(){
+  const st = document.getElementById('set-drive-status');
+  st.textContent = 'Testing…'; st.style.color = 'var(--ink3)';
+  try {
+    const key    = document.getElementById('set-drive-key').value.trim();
+    const folder = document.getElementById('set-drive-folder').value.trim();
+    if(!key || !folder) throw new Error('Enter both API key and Folder ID first.');
+    const r = await fetch(`${DRIVE_FILES}?q='${folder}'+in+parents&key=${key}&pageSize=1`);
+    if(!r.ok) throw new Error(`HTTP ${r.status} — check API key and folder ID/sharing settings`);
+    const d = await r.json();
+    if(d.error) throw new Error(d.error.message);
+    st.textContent = `✓ Connected · ${d.files?.length>=0 ? 'folder accessible' : 'check sharing'}`;
+    st.style.color = 'var(--grn,#2a7)';
+  } catch(e) {
+    st.textContent = `✗ ${e.message}`;
+    st.style.color = '#c00';
+  }
+}
+
+// Upload a PDF (fetched as ArrayBuffer) to Google Drive folder
+async function uploadPdfToDrive(arxivId, pdfBuffer){
+  const key    = settings.driveKey;
+  const folder = settings.driveFolder;
+  if(!key || !folder) throw new Error('Google Drive not configured.');
+
+  const filename = `${arxivId.replace('/','_')}.pdf`;
+
+  // Check if file already exists
+  const search = await fetch(
+    `${DRIVE_FILES}?q=name='${filename}'+and+'${folder}'+in+parents&key=${key}&fields=files(id,name,webViewLink)`
+  ).then(r=>r.json());
+
+  if(search.files?.length){
+    return search.files[0].webViewLink; // already uploaded
+  }
+
+  // Multipart upload: metadata + binary
+  const metadata = JSON.stringify({ name: filename, parents: [folder] });
+  const boundary = 'arxiv_pdf_boundary';
+
+  const encoder = new TextEncoder();
+  const metaPart = encoder.encode(
+    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n--${boundary}\r\nContent-Type: application/pdf\r\n\r\n`
+  );
+  const closePart = encoder.encode(`\r\n--${boundary}--`);
+
+  const body = new Uint8Array(metaPart.length + pdfBuffer.byteLength + closePart.length);
+  body.set(metaPart, 0);
+  body.set(new Uint8Array(pdfBuffer), metaPart.length);
+  body.set(closePart, metaPart.length + pdfBuffer.byteLength);
+
+  const r = await fetch(`${DRIVE_UPLOAD}?uploadType=multipart&key=${key}&fields=id,webViewLink`, {
+    method: 'POST',
+    headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
+    body
+  });
+  if(!r.ok){
+    const err = await r.json().catch(()=>({error:{message:'Upload failed'}}));
+    throw new Error(err.error?.message || `Drive upload ${r.status}`);
+  }
+  const d = await r.json();
+
+  // Make file readable by anyone with link
+  await fetch(`${DRIVE_FILES}/${d.id}/permissions?key=${key}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ role: 'reader', type: 'anyone' })
+  });
+
+  return d.webViewLink;
+}
+
+// Find or get the ID of papers.xlsx in the Drive folder
+let _xlsxFileId = null;
+async function getOrCreateXlsx(){
+  const key    = settings.driveKey;
+  const folder = settings.driveFolder;
+
+  const search = await fetch(
+    `${DRIVE_FILES}?q=name='papers.xlsx'+and+'${folder}'+in+parents&key=${key}&fields=files(id)`
+  ).then(r=>r.json());
+
+  if(search.files?.length) return search.files[0].id;
+
+  // Create empty xlsx with headers
+  const header = ['arXiv ID','Title','Authors','Date','Category','Saved By','Saved At','Drive PDF','Zotero Key','Abstract'];
+  const csvLine = header.map(h=>`"${h}"`).join(',') + '\r\n';
+  const blob = new Blob([csvLine], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const buf  = await blob.arrayBuffer();
+
+  const metadata = JSON.stringify({ name: 'papers.xlsx', parents: [folder],
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const boundary = 'xlsx_boundary';
+  const encoder  = new TextEncoder();
+  const metaPart  = encoder.encode(`--${boundary}\r\nContent-Type: application/json\r\n\r\n${metadata}\r\n--${boundary}\r\nContent-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\r\n\r\n`);
+  const closePart = encoder.encode(`\r\n--${boundary}--`);
+  const body = new Uint8Array(metaPart.length + buf.byteLength + closePart.length);
+  body.set(metaPart,0); body.set(new Uint8Array(buf), metaPart.length); body.set(closePart, metaPart.length+buf.byteLength);
+
+  const r = await fetch(`${DRIVE_UPLOAD}?uploadType=multipart&key=${key}&fields=id`, {
+    method:'POST', headers:{'Content-Type':`multipart/related; boundary=${boundary}`}, body
+  });
+  const d = await r.json();
+  return d.id;
+}
+
+// Append a row to papers.xlsx via Google Sheets API (Drive API for xlsx updates is complex;
+// we instead store a companion papers_log.csv which is simpler to append to)
+async function appendToDriveLog(p, driveUrl, zoteroKey){
+  const key    = settings.driveKey;
+  const folder = settings.driveFolder;
+  if(!key || !folder) return;
+
+  const authors = (p.authors||[]).map(a=>typeof a==='string'?a:(a.name||'')).join('; ');
+  const row = [
+    p.arxivId||'',
+    (p.title||'').replace(/"/g,"'"),
+    authors.replace(/"/g,"'"),
+    (p.published||p.date||'').slice(0,10),
+    p.category||'',
+    settings.username||'',
+    new Date().toISOString().slice(0,10),
+    driveUrl||'',
+    zoteroKey||'',
+    (p.summary||'').slice(0,300).replace(/"/g,"'").replace(/\n/g,' '),
+  // Prefix cells starting with = + - @ to prevent spreadsheet formula injection
+  ].map(v => {
+    const s = String(v);
+    return `"${/^[=+\-@]/.test(s) ? "'" + s : s}"`;
+  }).join(',');
+
+  // Find or create the CSV log file
+  const fname = 'papers_log.csv';
+  const search = await fetch(
+    `${DRIVE_FILES}?q=name='${fname}'+and+'${folder}'+in+parents&key=${key}&fields=files(id)`
+  ).then(r=>r.json()).catch(()=>({files:[]}));
+
+  if(search.files?.length){
+    // Append: download current content, add row, re-upload
+    const fileId = search.files[0].id;
+    const existing = await fetch(`${DRIVE_FILES}/${fileId}?alt=media&key=${key}`).then(r=>r.text()).catch(()=>'');
+    const header = existing.trim() ? '' : '"arXiv ID","Title","Authors","Date","Category","Saved By","Saved At","Drive PDF","Zotero Key","Abstract"\r\n';
+    const newContent = existing + (existing.endsWith('\n')?'':'\r\n') + row + '\r\n';
+    await fetch(`${DRIVE_UPLOAD}/${fileId}?uploadType=media&key=${key}`, {
+      method:'PATCH', headers:{'Content-Type':'text/csv'}, body: header+newContent
+    });
+  } else {
+    // Create fresh
+    const header = '"arXiv ID","Title","Authors","Date","Category","Saved By","Saved At","Drive PDF","Zotero Key","Abstract"\r\n';
+    const content = header + row + '\r\n';
+    const metadata = JSON.stringify({ name: fname, parents: [folder], mimeType:'text/csv' });
+    const boundary = 'csv_boundary';
+    const encoder  = new TextEncoder();
+    const metaPart  = encoder.encode(`--${boundary}\r\nContent-Type: application/json\r\n\r\n${metadata}\r\n--${boundary}\r\nContent-Type: text/csv\r\n\r\n`);
+    const closePart = encoder.encode(`\r\n--${boundary}--`);
+    const buf = encoder.encode(content);
+    const body = new Uint8Array(metaPart.length+buf.length+closePart.length);
+    body.set(metaPart,0); body.set(buf,metaPart.length); body.set(closePart,metaPart.length+buf.length);
+    await fetch(`${DRIVE_UPLOAD}?uploadType=multipart&key=${key}`, {
+      method:'POST', headers:{'Content-Type':`multipart/related; boundary=${boundary}`}, body
+    });
+  }
+}
+
+// ═══ UNIFIED SAVE — orchestrates local + Zotero + Drive ════════
+
+async function saveWithIntegrations(p, savebtn){
+  const mode = settings.storageMode || 'local';
+  // Auto-upgrade: if services are configured but mode is still 'local', use them
+  const hasZotero = !!(settings.zoteroKey && settings.zoteroGroup);
+  const hasDrive  = !!(settings.driveKey && settings.driveFolder);
+  const useZotero = mode === 'zotero' || mode === 'both' || (mode === 'local' && hasZotero);
+  const useDrive  = mode === 'drive'  || mode === 'both' || (mode === 'local' && hasDrive && mode !== 'local');
+  // (Drive requires explicit opt-in since it uploads files; Zotero is safe to auto-enable)
+
+  let zoteroKey = null;
+  let driveUrl  = null;
+
+  // Always save locally first (instant feedback)
+  const arxivId = p.arxivId || (p.id||'').replace(/https?:\/\/arxiv\.org\/abs\//,'').replace(/v\d+$/,'') || '';
+  p = { ...p, arxivId }; // normalise so paperToZoteroItem gets clean ID
+
+  // Prevent duplicates — if already in library, update in place instead of pushing again
+  const existingIdx = library.findIndex(x => x.arxivId === arxivId);
+  let entry;
+  if(existingIdx >= 0){
+    entry = library[existingIdx];
+    // Already local — just re-sync to Zotero/Drive if not yet done
+  } else {
+    entry = { ...p, arxivId, note:'', savedAt:new Date().toISOString(),
+              savedBy: settings.username||'', zoteroKey:null, driveUrl:null };
+    library.push(entry);
+  }
+  saveLib();
+  if(savebtn){ savebtn.className='lb ls saved'; savebtn.textContent='✓ In Library'; }
+  const modeDesc = useZotero && useDrive ? 'Saving to Zotero + Drive…' :
+                   useZotero ? 'Saving to Zotero…' :
+                   useDrive  ? 'Uploading to Drive…' : '';
+  toast(modeDesc || 'Saved ✓');
+
+  // Zotero (async, doesn't block)
+  if(useZotero && settings.zoteroKey && settings.zoteroGroup){
+    toast('Syncing to Zotero…', 3000);
+    try {
+      zoteroKey = await saveToZotero(p);
+      entry.zoteroKey = zoteroKey;
+      saveLib();
+      toast('Zotero ✓');
+    } catch(e) {
+      toast(`Zotero failed: ${e.message}`, 5000);
+      console.error('Zotero save error:', e);
+    }
+  }
+
+  // Google Drive PDF + log (async)
+  if(useDrive && settings.driveKey && settings.driveFolder){
+    toast('Uploading PDF to Drive…', 5000);
+    try {
+      const arxivId = p.arxivId || p.id || '';
+      const safePdfId = (arxivId||'').replace(/[^a-zA-Z0-9./v-]/g,'');
+      const pdfUrl  = `https://arxiv.org/pdf/${safePdfId}`;
+      const pdfResp = await fetch(pdfUrl);
+      if(!pdfResp.ok) throw new Error(`Could not fetch PDF (${pdfResp.status})`);
+      const pdfBuffer = await pdfResp.arrayBuffer();
+      driveUrl = await uploadPdfToDrive(arxivId, pdfBuffer);
+      entry.driveUrl = driveUrl;
+      saveLib();
+      toast('Drive PDF ✓');
+      // Append to CSV log
+      await appendToDriveLog(p, driveUrl, zoteroKey).catch(e=>console.warn('CSV log failed:',e));
+      // Update Zotero item extra field with Drive URL
+      if(zoteroKey && settings.zoteroGroup){
+        zoteroFetch(`/groups/${settings.zoteroGroup}/items/${zoteroKey}`, {
+          method:'PATCH',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ extra: `arXiv: ${arxivId}\nSaved by: ${settings.username||'unknown'}\nDrive PDF: ${driveUrl}` })
+        }).catch(()=>{});
+      }
+    } catch(e) {
+      toast(`Drive upload failed: ${e.message}`, 5000);
+      console.error('Drive upload error:', e);
+    }
+  }
+}
+
+// ═══ FIND IN RESULTS ════════════════════════════════════════════
+
+let _findMatches = [], _findIdx = 0;
+
+function openFindBar(){
+  const bar = document.getElementById('find-bar');
+  bar.classList.add('open');
+  const inp = document.getElementById('find-input');
+  inp.focus(); inp.select();
+  if(inp.value) runFind();
+}
+
+function closeFindBar(){
+  document.getElementById('find-bar').classList.remove('open');
+  clearFindHighlights();
+  _findMatches = []; _findIdx = 0;
+  document.getElementById('find-count').textContent = '';
+}
+
+function clearFindHighlights(){
+  document.querySelectorAll('.find-hl').forEach(el => {
+    const parent = el.parentNode;
+    parent.replaceChild(document.createTextNode(el.textContent), el);
+    parent.normalize();
+  });
+}
+
+function highlightText(node, term){
+  if(node.nodeType === 3){
+    const matches = [];
+    let remaining = node;
+    while(true){
+      const text = remaining.textContent;
+      const pos = text.toLowerCase().indexOf(term);
+      if(pos === -1) break;
+      const before = document.createTextNode(text.slice(0, pos));
+      const mark = document.createElement('mark');
+      mark.className = 'find-hl';
+      mark.textContent = text.slice(pos, pos + term.length);
+      const after = document.createTextNode(text.slice(pos + term.length));
+      const parent = remaining.parentNode;
+      parent.insertBefore(before, remaining);
+      parent.insertBefore(mark, remaining);
+      parent.insertBefore(after, remaining);
+      parent.removeChild(remaining);
+      matches.push(mark);
+      remaining = after;
+    }
+    return matches;
+  }
+  if(node.nodeType === 1 && !['SCRIPT','STYLE','INPUT','TEXTAREA'].includes(node.tagName)){
+    const matches = [];
+    Array.from(node.childNodes).forEach(child => matches.push(...highlightText(child, term)));
+    return matches;
+  }
+  return [];
+}
+
+function runFind(){
+  clearFindHighlights();
+  _findMatches = []; _findIdx = 0;
+  const term = document.getElementById('find-input').value.trim().toLowerCase();
+  if(!term){ document.getElementById('find-count').textContent = ''; return; }
+  const feed = document.getElementById('feed');
+  _findMatches = highlightText(feed, term);
+  const count = document.getElementById('find-count');
+  if(!_findMatches.length){ count.textContent = 'No matches'; count.style.color='#c00'; return; }
+  count.style.color = 'var(--ink3)';
+  scrollToMatch(0);
+}
+
+function scrollToMatch(idx){
+  _findMatches.forEach(m => m.classList.remove('find-current'));
+  if(!_findMatches.length) return;
+  _findIdx = ((idx % _findMatches.length) + _findMatches.length) % _findMatches.length;
+  const m = _findMatches[_findIdx];
+  m.classList.add('find-current');
+  m.scrollIntoView({ behavior:'smooth', block:'center' });
+  document.getElementById('find-count').textContent = `${_findIdx+1} / ${_findMatches.length}`;
+}
+
+(function(){
+  const inp  = document.getElementById('find-input');
+  const next = document.getElementById('find-next');
+  const prev = document.getElementById('find-prev');
+  const cls  = document.getElementById('find-close');
+  inp.addEventListener('input', runFind);
+  inp.addEventListener('keydown', e => {
+    if(e.key === 'Enter'){ e.preventDefault(); scrollToMatch(e.shiftKey ? _findIdx-1 : _findIdx+1); }
+    if(e.key === 'Escape'){ closeFindBar(); }
+  });
+  next.addEventListener('click', () => scrollToMatch(_findIdx+1));
+  prev.addEventListener('click', () => scrollToMatch(_findIdx-1));
+  cls.addEventListener('click', closeFindBar);
+  document.addEventListener('keydown', e => {
+    if((e.ctrlKey || e.metaKey) && e.key === 'f'){
+      const searchTab = document.getElementById('tab-search');
+      if(searchTab && searchTab.style.display !== 'none'){
+        e.preventDefault();
+        openFindBar();
+      }
+    }
+    if(e.key === 'Escape') closeFindBar();
+  });
+})();
+
 // ═══ INIT ════════════════════════════════════════════════════
 (function(){
   const hasGh=settings.ghToken&&settings.ghRepo;
   document.getElementById('gh-pull-btn').style.display=hasGh?'':'none';
   document.getElementById('gh-push-btn').style.display=hasGh?'':'none';
+  const hasZotero2=!!(settings.zoteroKey&&settings.zoteroGroup);
+  document.getElementById('zotero-sync-btn').style.display=hasZotero2?'':'none';
   if(hasGh){
     document.getElementById('gh-bar').textContent=`\u{1f504} GitHub: ${settings.ghRepo} / ${settings.ghBranch||'main'}`;
     document.getElementById('gh-bar').style.display='';

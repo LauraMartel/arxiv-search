@@ -1,61 +1,38 @@
 @echo off
-title arXiv Browser — Build
-color 0A
+setlocal enabledelayedexpansion
+
+:: Store the current directory before any elevation
+set "APPDIR=%~dp0"
+set "APPDIR=%APPDIR:~0,-1%"
+
+:: Check if already admin
+net session >nul 2>&1
+if %errorlevel% == 0 goto :ADMIN
+
+:: Not admin — re-launch this exact file as admin with the path as argument
+powershell -Command "Start-Process -FilePath 'cmd.exe' -ArgumentList '/k cd /d \"%APPDIR%\" && \"%APPDIR%\BUILD.bat\"' -Verb RunAs"
+exit /b
+
+:ADMIN
+cd /d "%APPDIR%"
 echo.
-echo  =========================================
-echo   arXiv Browser — Building the .exe
-echo  =========================================
+echo  arXiv Browser - Setup and Launch
+echo  Working in: %APPDIR%
 echo.
 
-:: Disable ALL code signing
-set CSC_IDENTITY_AUTO_DISCOVERY=false
-set WIN_CSC_LINK=
-set CSC_LINK=
-set CSC_KEY_PASSWORD=
-
-:: Check Node.js
 node --version >nul 2>&1
-if %errorlevel% neq 0 (
-    echo  [1/3] Node.js not found. Downloading...
-    powershell -Command "& {Invoke-WebRequest -Uri 'https://nodejs.org/dist/v20.11.0/node-v20.11.0-x64.msi' -OutFile '%TEMP%\node-installer.msi'; Start-Process msiexec -ArgumentList '/i %TEMP%\node-installer.msi /quiet /norestart' -Wait}"
-    set "PATH=%PATH%;C:\Program Files\nodejs"
-    node --version >nul 2>&1
-    if %errorlevel% neq 0 (
-        echo  ERROR: Node.js install failed. Get it from https://nodejs.org
-        pause & exit /b 1
-    )
-    echo  Node.js installed.
-) else (
-    echo  [1/3] Node.js: OK
-)
-
-echo.
-echo  [2/3] Installing dependencies...
-if exist "node_modules" rmdir /s /q node_modules
-call npm install
-if %errorlevel% neq 0 (
-    echo  ERROR during npm install.
+if errorlevel 1 (
+    echo ERROR: Node.js not installed.
+    echo Please install it from https://nodejs.org then run this file again.
     pause & exit /b 1
 )
 
-echo.
-echo  [3/3] Building the .exe...
-echo  (This creates a folder with the app, not an installer)
-echo.
-call npm run build:win
-if %errorlevel% neq 0 (
-    echo  ERROR during build.
-    pause & exit /b 1
+if not exist node_modules (
+    echo Installing dependencies for the first time...
+    call npm install
+    if errorlevel 1 ( echo Installation failed. & pause & exit /b 1 )
+    echo.
 )
 
-echo.
-echo  =========================================
-echo   SUCCESS!
-echo   Your app is in: dist\arXiv Browser-win32-x64\
-echo   Share that entire folder, or zip it up.
-echo   Run: "arXiv Browser.exe" inside it
-echo  =========================================
-echo.
-
-if exist "dist" explorer dist
-pause
+echo Launching arXiv Browser...
+call npm start
