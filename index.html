@@ -235,6 +235,20 @@ body{background:var(--bg);color:var(--ink);font-family:'IBM Plex Mono',monospace
 /* TOAST */
 .toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%) translateY(90px);background:var(--ink);color:var(--bg);font-size:.68rem;font-family:'IBM Plex Mono',monospace;padding:.6rem 1.1rem;box-shadow:0 4px 18px rgba(0,0,0,.2);z-index:9999;transition:transform .28s ease;pointer-events:none;white-space:nowrap;border-radius:1px}
 .toast.show{transform:translateX(-50%) translateY(0)}
+
+/* LOCAL API SERVER */
+.api-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--bdr2);vertical-align:middle;flex-shrink:0;transition:background .2s}
+.api-dot.on{background:var(--grn)}
+.api-table{width:100%;border-collapse:collapse;margin:.65rem 0;font-size:.63rem}
+.api-table th{text-align:left;padding:.32rem .45rem;font-size:.56rem;color:var(--ink3);text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid var(--bdr);font-weight:500}
+.api-table td{padding:.38rem .45rem;border-bottom:1px solid var(--bdr);vertical-align:middle;color:var(--ink2)}
+.api-table tr:last-child td{border-bottom:none}
+.api-table code{font-family:'IBM Plex Mono',monospace;color:var(--ink3);letter-spacing:.03em}
+.key-flash{background:#f0faf4;border:1px solid #b8d8c8;padding:.65rem .85rem;margin:.7rem 0;font-size:.68rem;color:var(--grn);word-break:break-all;line-height:1.65;display:none}
+.key-flash.show{display:block}
+.api-docs-toggle{background:none;border:none;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:.63rem;color:var(--acc2);padding:0;margin-top:.5rem;text-decoration:underline;display:inline-block}
+.api-docs-body{display:none;margin-top:.65rem}.api-docs-body.open{display:block}
+.api-code{background:var(--bg);border:1px solid var(--bdr);padding:.55rem .75rem;font-size:.61rem;font-family:'IBM Plex Mono',monospace;color:var(--ink2);line-height:1.75;overflow-x:auto;white-space:pre;margin:.28rem 0}
 </style>
 </head>
 <body>
@@ -245,7 +259,7 @@ body{background:var(--bg);color:var(--ink);font-family:'IBM Plex Mono',monospace
   <button class="tab on" onclick="setTab('search')">🔍 Search</button>
   <button class="tab" onclick="setTab('library')">📚 Library <span class="badge" id="lib-badge">0</span></button>
 <button class="tab" onclick="setTab('ai')">🤖 AI <span id="ai-lock">🔒</span></button>
-  <button class="tab" onclick="setTab('settings')">⚙ Settings</button>
+  <button class="tab" onclick="setTab('settings')">🔑 APIs</button>
 </nav>
 
 <!-- ══ SEARCH ══ -->
@@ -338,7 +352,7 @@ body{background:var(--bg);color:var(--ink);font-family:'IBM Plex Mono',monospace
     <div id="ai-no-key" class="blank">
       <div class="blank-i">🔑</div>
       <div class="blank-t">API key required</div>
-      <div class="blank-s">Go to the <strong>Settings</strong> tab and enter your OpenAI or Anthropic key. Your key is stored locally and only sent directly to the AI provider.</div>
+      <div class="blank-s">Go to the <strong>APIs</strong> tab and enter your OpenAI or Anthropic key. Your key is stored locally and only sent directly to the AI provider.</div>
     </div>
     <div id="ai-content" style="display:none">
       <div class="ai-sec">
@@ -367,10 +381,12 @@ body{background:var(--bg);color:var(--ink);font-family:'IBM Plex Mono',monospace
   </div>
 </div>
 
-<!-- ══ SETTINGS ══ -->
+<!-- ══ APIs ══ -->
 <div id="tab-settings" style="display:none">
   <div class="settings">
-    <div class="set-title">Settings</div>
+    <div class="set-title">APIs</div>
+
+    <div style="font-size:.57rem;text-transform:uppercase;letter-spacing:.11em;color:var(--ink3);margin-bottom:.65rem;padding-left:.1rem">External Services</div>
 
     <div class="set-sec">
       <div class="set-sec-t">🤖 AI Agent</div>
@@ -472,6 +488,58 @@ body{background:var(--bg);color:var(--ink);font-family:'IBM Plex Mono',monospace
     </div>
 
     <button class="save-btn" onclick="saveSettings()">Save settings</button>
+
+    <div style="margin-top:2rem;font-size:.57rem;text-transform:uppercase;letter-spacing:.11em;color:var(--ink3);margin-bottom:.65rem;padding-left:.1rem">Local API Server</div>
+
+    <div class="set-sec">
+      <div class="set-sec-t">🔌 Local API Server <span style="font-size:.6rem;color:var(--ink3);font-weight:400;text-transform:none;letter-spacing:0">— let scripts &amp; agents connect to this app</span></div>
+
+      <!-- Server status + toggle -->
+      <div class="set-row" style="flex-direction:row;align-items:center;gap:.6rem;flex-wrap:wrap">
+        <span class="api-dot" id="api-dot"></span>
+        <span id="api-status-text" style="font-size:.68rem;color:var(--ink3)">Server stopped</span>
+        <div style="display:flex;align-items:center;gap:.4rem;margin-left:auto;flex-wrap:wrap">
+          <label class="set-label" style="margin:0;white-space:nowrap">Port</label>
+          <input class="set-input" id="api-port" type="number" value="7842" min="1024" max="65535" style="width:88px"/>
+          <button class="sbtn" id="api-toggle-btn" onclick="toggleApiServer()" style="font-size:.7rem;height:38px;padding:0 .95rem">Start</button>
+        </div>
+      </div>
+      <p class="set-hint" style="margin-top:.2rem">Binds to 127.0.0.1 only — only programs on <em>this</em> computer can connect. Keys use 256-bit random entropy.</p>
+
+      <!-- Keys table -->
+      <div style="margin-top:1.1rem">
+        <div style="font-size:.63rem;font-weight:500;color:var(--ink2);margin-bottom:.5rem;letter-spacing:.02em">API Keys</div>
+        <div id="api-keys-container">
+          <div style="font-size:.64rem;color:var(--ink3)">No keys yet.</div>
+        </div>
+      </div>
+
+      <!-- Create key -->
+      <div style="margin-top:.85rem;display:flex;gap:.4rem;align-items:center;flex-wrap:wrap">
+        <input class="set-input" id="api-new-key-name" type="text" placeholder="Key name, e.g. My Agent" style="max-width:260px"/>
+        <button class="sbtn" onclick="createApiKey()" style="font-size:.7rem;height:38px;padding:0 1rem">+ Create key</button>
+      </div>
+
+      <!-- One-time key flash box -->
+      <div class="key-flash" id="key-flash"></div>
+
+      <!-- Usage examples accordion -->
+      <button class="api-docs-toggle" onclick="toggleApiDocs()">▸ Show usage examples (curl)</button>
+      <div class="api-docs-body" id="api-docs-body">
+        <p class="set-hint" style="margin-bottom:.5rem">Replace <code>axk_…</code> with your key. Adjust the port if you changed it.</p>
+        <pre class="api-code">curl http://localhost:7842/v1/status</pre>
+        <pre class="api-code">curl -H "Authorization: Bearer axk_…" \
+     "http://localhost:7842/v1/search?q=superconductivity&max=5"</pre>
+        <pre class="api-code">curl -H "Authorization: Bearer axk_…" \
+     http://localhost:7842/v1/library</pre>
+        <pre class="api-code">curl -X POST \
+     -H "Authorization: Bearer axk_…" \
+     -H "Content-Type: application/json" \
+     -d '{"arxivId":"2301.12345","title":"My Paper","authors":["A. Smith"]}' \
+     http://localhost:7842/v1/library</pre>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -578,9 +646,100 @@ function loadState(){
   try{library=JSON.parse(localStorage.getItem('ax_lib')||'[]')}catch(_){library=[]}
   try{settings=Object.assign(settings,JSON.parse(localStorage.getItem('ax_cfg')||'{}'))}catch(_){}
 }
-function saveLib(){localStorage.setItem('ax_lib',JSON.stringify(library));updateBadge()}
+function saveLib(){localStorage.setItem('ax_lib',JSON.stringify(library));updateBadge();syncLibraryToMain()}
 function saveCfg(){localStorage.setItem('ax_cfg',JSON.stringify(settings))}
 loadState();
+
+// ═══ ACTIONS LAYER ══════════════════════════════════════════
+// Pure business logic — no DOM, no toast(), no CSS mutations.
+// Return { ok: true, … } or { ok: false, error: string }.
+// Shared by UI handlers and external LangChain / LangGraph tools.
+
+async function actionArxivSearch(query, category, maxResults = 10) {
+  try {
+    const q = query && category ? `(ti:${query} OR abs:${query}) AND cat:${category}`
+            : category          ? `cat:${category}`
+            : query             ? `all:${query}`
+            : '*';
+    const params = new URLSearchParams({
+      search_query: q, start: 0,
+      max_results: Math.min(Number(maxResults) || 10, 50),
+      sortBy: 'relevance', sortOrder: 'descending',
+    });
+    const xml = await fetchArxiv(`https://export.arxiv.org/api/query?${params}`);
+    return { ok: true, papers: parseXML(xml) };
+  } catch(e) { return { ok: false, error: e.message }; }
+}
+
+async function actionSavePaper(paper) {
+  try {
+    const arxivId = String(
+      paper.arxivId ||
+      (paper.id||'').replace(/https?:\/\/arxiv\.org\/abs\//,'').replace(/v\d+$/,'') || ''
+    ).trim();
+    if (!arxivId) return { ok: false, error: 'arxivId is required' };
+    const p = { ...paper, arxivId };
+    const existingIdx = library.findIndex(x => x.arxivId === arxivId);
+    let entry;
+    if (existingIdx >= 0) {
+      entry = library[existingIdx];
+    } else {
+      entry = { ...p, arxivId, note: '', savedAt: new Date().toISOString(),
+                savedBy: settings.username || '', zoteroKey: null, driveUrl: null };
+      library.push(entry);
+    }
+    saveLib();
+    return { ok: true, entry };
+  } catch(e) { return { ok: false, error: e.message }; }
+}
+
+function actionRemovePaper(arxivId) {
+  try {
+    const idx = library.findIndex(x => x.arxivId === arxivId);
+    if (idx < 0) return { ok: false, error: 'Paper not in library' };
+    library.splice(idx, 1);
+    saveLib();
+    return { ok: true };
+  } catch(e) { return { ok: false, error: e.message }; }
+}
+
+async function actionZoteroSave(paper) {
+  try {
+    const zoteroKey = await saveToZotero(paper);
+    return { ok: true, zoteroKey };
+  } catch(e) { return { ok: false, error: e.message }; }
+}
+
+async function actionZoteroSync() {
+  try {
+    const remote = await fetchZoteroLibrary();
+    if (!remote.length) return { ok: true, added: 0, updated: 0 };
+    let added = 0, updated = 0;
+    remote.forEach(p => {
+      if (!p.arxivId) return;
+      const existing = library.find(x => x.arxivId === p.arxivId);
+      if (!existing) {
+        library.push({ ...p, note: p.note || '', savedAt: p.savedAt || new Date().toISOString() });
+        added++;
+      } else {
+        if (!existing.zoteroKey && p.zoteroKey) { existing.zoteroKey = p.zoteroKey; updated++; }
+        if (!existing.driveUrl  && p.driveUrl)  { existing.driveUrl  = p.driveUrl;  updated++; }
+      }
+    });
+    saveLib();
+    return { ok: true, added, updated };
+  } catch(e) { return { ok: false, error: e.message }; }
+}
+
+function actionUpdateNote(arxivId, note) {
+  try {
+    const entry = library.find(x => x.arxivId === arxivId);
+    if (!entry) return { ok: false, error: 'Paper not in library' };
+    entry.note = String(note || '').slice(0, 5000);
+    saveLib();
+    return { ok: true };
+  } catch(e) { return { ok: false, error: e.message }; }
+}
 
 // ═══ HELPERS ════════════════════════════════════════════════
 const isoToday=()=>new Date().toISOString().slice(0,10);
@@ -608,7 +767,7 @@ function setTab(t){
   });
   if(t==='library')renderLib();
   if(t==='ai')renderAiStatus();
-  if(t==='settings')loadSettingsUI();
+  if(t==='settings'){loadSettingsUI();loadApiSection();}
 }
 
 // ═══ CATEGORY COMBOBOX ══════════════════════════════════════
@@ -1009,10 +1168,9 @@ function makeLibCard(p){
   el.querySelector('.lc-rm-btn').addEventListener('click',async e=>{
     e.stopPropagation();
     if(!confirm('Remove from library?')) return;
-    // Remove locally
     const entry = library.find(x=>x.arxivId===p.arxivId);
-    library = library.filter(x=>x.arxivId!==p.arxivId);
-    saveLib();
+    const result = actionRemovePaper(p.arxivId);
+    if(!result.ok){ toast(`Remove failed: ${result.error}`); return; }
     renderLib();
     toast('Removed');
     // Remove from Zotero if synced
@@ -1024,7 +1182,7 @@ function makeLibCard(p){
     }
   });
   const ta=el.querySelector('.note-area');let nt;
-  ta.addEventListener('input',()=>{clearTimeout(nt);nt=setTimeout(()=>{const entry=library.find(x=>x.arxivId===p.arxivId);if(entry){entry.note=ta.value.slice(0,5000);saveLib()}},1000)});
+  ta.addEventListener('input',()=>{clearTimeout(nt);nt=setTimeout(()=>{actionUpdateNote(p.arxivId,ta.value)},1000)});
   ta.addEventListener('click',e=>e.stopPropagation());
   return el;
 }
@@ -1473,28 +1631,13 @@ async function syncFromZotero(){
   btn.disabled = true; btn.textContent = '⟳ Syncing…';
   try {
     toast('Fetching Zotero library…', 6000);
-    const remote = await fetchZoteroLibrary();
-    if(!remote.length){ toast('No papers found in Zotero group'); return; }
-
-    let added = 0, updated = 0;
-    remote.forEach(p => {
-      if(!p.arxivId) return;
-      const existing = library.find(x => x.arxivId === p.arxivId);
-      if(!existing){
-        // New paper — add it
-        library.push({ ...p, note: p.note||'', savedAt: p.savedAt||new Date().toISOString() });
-        added++;
-      } else {
-        // Already have it — update Zotero key and Drive URL if missing
-        if(!existing.zoteroKey && p.zoteroKey){ existing.zoteroKey = p.zoteroKey; updated++; }
-        if(!existing.driveUrl  && p.driveUrl) { existing.driveUrl  = p.driveUrl;  updated++; }
-      }
-    });
-
-    saveLib(); renderLib();
-    toast(`Zotero sync done — ${added} new, ${updated} updated ✓`);
-  } catch(e) {
-    toast(`Zotero sync failed: ${e.message.slice(0,100)}`, 5000);
+    const result = await actionZoteroSync();
+    if(!result.ok){ toast(`Zotero sync failed: ${result.error.slice(0,100)}`, 5000); return; }
+    renderLib();
+    const { added, updated } = result;
+    toast(added || updated
+      ? `Zotero sync done — ${added} new, ${updated} updated ✓`
+      : 'Zotero sync done — library up to date ✓');
   } finally {
     btn.disabled = false; btn.textContent = '⟳ Sync Zotero';
   }
@@ -1684,47 +1827,37 @@ async function saveWithIntegrations(p, savebtn){
   let zoteroKey = null;
   let driveUrl  = null;
 
-  // Always save locally first (instant feedback)
-  const arxivId = p.arxivId || (p.id||'').replace(/https?:\/\/arxiv\.org\/abs\//,'').replace(/v\d+$/,'') || '';
-  p = { ...p, arxivId }; // normalise so paperToZoteroItem gets clean ID
+  // ── Local save via action (no inline DOM / library mutation here) ──────────
+  const saveResult = await actionSavePaper(p);
+  if (!saveResult.ok) { toast(`Save failed: ${saveResult.error}`); return; }
+  const entry   = saveResult.entry;
+  const arxivId = entry.arxivId;
 
-  // Prevent duplicates — if already in library, update in place instead of pushing again
-  const existingIdx = library.findIndex(x => x.arxivId === arxivId);
-  let entry;
-  if(existingIdx >= 0){
-    entry = library[existingIdx];
-    // Already local — just re-sync to Zotero/Drive if not yet done
-  } else {
-    entry = { ...p, arxivId, note:'', savedAt:new Date().toISOString(),
-              savedBy: settings.username||'', zoteroKey:null, driveUrl:null };
-    library.push(entry);
-  }
-  saveLib();
   if(savebtn){ savebtn.className='lb ls saved'; savebtn.textContent='✓ In Library'; }
   const modeDesc = useZotero && useDrive ? 'Saving to Zotero + Drive…' :
                    useZotero ? 'Saving to Zotero…' :
                    useDrive  ? 'Uploading to Drive…' : '';
   toast(modeDesc || 'Saved ✓');
 
-  // Zotero (async, doesn't block)
+  // ── Zotero via action (no inline try/catch around API) ────────────────────
   if(useZotero && settings.zoteroKey && settings.zoteroGroup){
     toast('Syncing to Zotero…', 3000);
-    try {
-      zoteroKey = await saveToZotero(p);
+    const z = await actionZoteroSave(entry);
+    if(z.ok){
+      zoteroKey = z.zoteroKey;
       entry.zoteroKey = zoteroKey;
       saveLib();
       toast('Zotero ✓');
-    } catch(e) {
-      toast(`Zotero failed: ${e.message}`, 5000);
-      console.error('Zotero save error:', e);
+    } else {
+      toast(`Zotero failed: ${z.error}`, 5000);
+      console.error('Zotero save error:', z.error);
     }
   }
 
-  // Google Drive PDF + log (async)
+  // ── Google Drive PDF + log (async) — unchanged, out of agent scope ────────
   if(useDrive && settings.driveKey && settings.driveFolder){
     toast('Uploading PDF to Drive…', 5000);
     try {
-      const arxivId = p.arxivId || p.id || '';
       const safePdfId = (arxivId||'').replace(/[^a-zA-Z0-9./v-]/g,'');
       const pdfUrl  = `https://arxiv.org/pdf/${safePdfId}`;
       const pdfResp = await fetch(pdfUrl);
@@ -1735,7 +1868,7 @@ async function saveWithIntegrations(p, savebtn){
       saveLib();
       toast('Drive PDF ✓');
       // Append to CSV log
-      await appendToDriveLog(p, driveUrl, zoteroKey).catch(e=>console.warn('CSV log failed:',e));
+      await appendToDriveLog(entry, driveUrl, zoteroKey).catch(e=>console.warn('CSV log failed:',e));
       // Update Zotero item extra field with Drive URL
       if(zoteroKey && settings.zoteroGroup){
         zoteroFetch(`/groups/${settings.zoteroGroup}/items/${zoteroKey}`, {
@@ -1857,6 +1990,166 @@ function scrollToMatch(idx){
   });
 })();
 
+// ═══ LOCAL API SECTION ════════════════════════════════════════
+// Only functional in Electron (window.electronAPI must expose the IPC methods)
+const _isElectron = !!(window.electronAPI && window.electronAPI.apiKeysList);
+
+// Sync library to main process so /v1/library stays up-to-date.
+// Called by saveLib() and once at startup.
+function syncLibraryToMain(){
+  if(!window.electronAPI?.syncLibrary) return;
+  // Send only safe, non-secret fields
+  const safeLib=library.map(({arxivId,title,authors,published,summary,cats,doi,jref,savedAt,savedBy,zoteroKey,driveUrl,note})=>
+    ({arxivId,title,authors,published,summary,cats,doi,jref,savedAt,savedBy,zoteroKey,driveUrl,note}));
+  window.electronAPI.syncLibrary(safeLib);
+}
+
+async function loadApiSection(){
+  if(!_isElectron) return;
+  const [keys, status] = await Promise.all([
+    window.electronAPI.apiKeysList(),
+    window.electronAPI.apiServerStatus(),
+  ]);
+  renderApiKeys(keys);
+  updateApiServerStatus(status);
+}
+
+function updateApiServerStatus({running, port}){
+  const dot = document.getElementById('api-dot');
+  const txt = document.getElementById('api-status-text');
+  const btn = document.getElementById('api-toggle-btn');
+  if(!dot) return;
+  dot.classList.toggle('on', running);
+  txt.textContent = running ? `Running on port ${port}` : 'Server stopped';
+  txt.style.color = running ? 'var(--grn)' : 'var(--ink3)';
+  btn.textContent = running ? 'Stop' : 'Start';
+  if(running && port) document.getElementById('api-port').value = port;
+}
+
+function renderApiKeys(keys){
+  const container = document.getElementById('api-keys-container');
+  if(!container) return;
+  if(!keys.length){
+    container.innerHTML='<div style="font-size:.64rem;color:var(--ink3)">No keys yet. Create one below.</div>';
+    return;
+  }
+  const rows = keys.map(k=>`
+    <tr>
+      <td>${esc(k.name)}</td>
+      <td><code>axk_••••••••</code></td>
+      <td>${k.created ? new Date(k.created).toLocaleDateString() : '—'}</td>
+      <td>${k.lastUsed ? new Date(k.lastUsed).toLocaleDateString() : 'Never'}</td>
+      <td>
+        <button onclick="deleteApiKey('${esc(k.id)}')" style="background:none;border:1px solid rgba(184,76,30,.3);color:var(--acc);padding:.12rem .42rem;font-size:.58rem;cursor:pointer;font-family:inherit">Delete</button>
+      </td>
+    </tr>`).join('');
+  container.innerHTML=`
+    <table class="api-table">
+      <thead><tr><th>Name</th><th>Key</th><th>Created</th><th>Last used</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+async function createApiKey(){
+  if(!_isElectron){ toast('API server only available in the desktop app'); return; }
+  const name = document.getElementById('api-new-key-name').value.trim();
+  if(!name){ toast('Enter a name for this key'); return; }
+  const record = await window.electronAPI.apiKeyCreate(name);
+  document.getElementById('api-new-key-name').value = '';
+  // Show the full key exactly once — it is never retrievable again
+  const flash = document.getElementById('key-flash');
+  flash.innerHTML=`<strong>Copy this key now — it will not be shown again:</strong><br><br>`+
+    `<code style="font-size:.76rem;letter-spacing:.04em;color:var(--ink)">${esc(record.key)}</code>&nbsp;&nbsp;`+
+    `<button onclick="copyApiKey('${esc(record.key)}')" style="background:var(--grn);color:#fff;border:none;padding:.22rem .65rem;font-size:.64rem;cursor:pointer;font-family:inherit;margin-top:.35rem">Copy</button>`;
+  flash.classList.add('show');
+  const keys = await window.electronAPI.apiKeysList();
+  renderApiKeys(keys);
+  toast('API key created ✓');
+}
+
+async function deleteApiKey(id){
+  if(!_isElectron) return;
+  if(!confirm('Delete this API key?\n\nAny agent using it will lose access immediately.')) return;
+  await window.electronAPI.apiKeyDelete(id);
+  document.getElementById('key-flash').classList.remove('show');
+  const keys = await window.electronAPI.apiKeysList();
+  renderApiKeys(keys);
+  toast('Key deleted ✓');
+}
+
+function copyApiKey(key){
+  navigator.clipboard?.writeText(key)
+    .then(()=>toast('Key copied to clipboard ✓'))
+    .catch(()=>toast('Copy failed — select and copy manually'));
+}
+
+async function toggleApiServer(){
+  if(!_isElectron){ toast('API server only available in the desktop app'); return; }
+  const status = await window.electronAPI.apiServerStatus();
+  if(status.running){
+    await window.electronAPI.apiServerStop();
+  } else {
+    const portVal = parseInt(document.getElementById('api-port').value) || 7842;
+    if(portVal < 1024 || portVal > 65535){ toast('Port must be between 1024 and 65535'); return; }
+    await window.electronAPI.apiServerStart(portVal);
+  }
+  const newStatus = await window.electronAPI.apiServerStatus();
+  updateApiServerStatus(newStatus);
+}
+
+function toggleApiDocs(){
+  const body = document.getElementById('api-docs-body');
+  const btn  = body.previousElementSibling;
+  body.classList.toggle('open');
+  btn.textContent = body.classList.contains('open') ? '▾ Hide usage examples (curl)' : '▸ Show usage examples (curl)';
+}
+
+// Receive paper pushed by an external agent via POST /v1/library
+if(window.electronAPI?.onAddPaperFromApi){
+  window.electronAPI.onAddPaperFromApi(raw => {
+    if(!raw || typeof raw.arxivId !== 'string' || !raw.arxivId.trim()) return;
+    // Sanitise all incoming fields — never trust external input
+    const paper = {
+      arxivId:   String(raw.arxivId).replace(/[^a-zA-Z0-9./v-]/g,'').slice(0,100),
+      title:     String(raw.title||'').slice(0,500),
+      authors:   (Array.isArray(raw.authors)?raw.authors:[]).map(a=>String(a).slice(0,200)).slice(0,50),
+      published: String(raw.published||'').slice(0,30),
+      summary:   String(raw.summary||'').slice(0,3000),
+      cats:      (Array.isArray(raw.cats)?raw.cats:[]).map(c=>String(c).slice(0,50)).slice(0,10),
+      doi:       String(raw.doi||'').replace(/[^a-zA-Z0-9./_-]/g,'').slice(0,100),
+      jref:      String(raw.jref||'').slice(0,200),
+      savedAt:   new Date().toISOString(),
+      savedBy:   'API',
+      note:      '',
+      zoteroKey: null,
+      driveUrl:  null,
+      id:        `https://arxiv.org/abs/${String(raw.arxivId).replace(/[^a-zA-Z0-9./v-]/g,'').slice(0,100)}`,
+      pdfLink:   `https://arxiv.org/pdf/${String(raw.arxivId).replace(/[^a-zA-Z0-9./v-]/g,'').slice(0,100)}`,
+    };
+    if(!library.find(x=>x.arxivId===paper.arxivId)){
+      library.push(paper);
+      saveLib();
+      toast(`API: added "${paper.title.slice(0,55)}" ✓`);
+    }
+  });
+}
+
+// Receive remove-paper signal from agent via DELETE /v1/library/:arxivId
+if(window.electronAPI?.onRemovePaperFromApi){
+  window.electronAPI.onRemovePaperFromApi(arxivId => {
+    const result = actionRemovePaper(arxivId);
+    if(result.ok) renderLib();
+  });
+}
+
+// Receive update-note signal from agent via PATCH /v1/library/:arxivId
+if(window.electronAPI?.onUpdateNoteFromApi){
+  window.electronAPI.onUpdateNoteFromApi(({arxivId, note}) => {
+    actionUpdateNote(arxivId, note);
+    renderLib();
+  });
+}
+
 // ═══ INIT ════════════════════════════════════════════════════
 (function(){
   const hasGh=settings.ghToken&&settings.ghRepo;
@@ -1868,6 +2161,8 @@ function scrollToMatch(idx){
     document.getElementById('gh-bar').textContent=`\u{1f504} GitHub: ${settings.ghRepo} / ${settings.ghBranch||'main'}`;
     document.getElementById('gh-bar').style.display='';
   }
+  // Prime the library cache in main process for the /v1/library endpoint
+  syncLibraryToMain();
 })();
 </script>
 </body>
