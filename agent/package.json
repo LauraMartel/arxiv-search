@@ -1,0 +1,20 @@
+{
+  "name": "arxiv-agent",
+  "version": "1.0.0",
+  "description": "LangGraph ReAct agent for arXiv Browser — search, save, note, sync Zotero",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@langchain/core": "^0.3.0",
+    "@langchain/langgraph": "^0.2.0",
+    "@langchain/openai": "^0.3.0",
+    "express": "^4.19.0",
+    "zod": "^3.23.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

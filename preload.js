@@ -16,5 +16,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Renderer → main: push library snapshot for /v1/library endpoint
   syncLibrary: (data) => ipcRenderer.send('sync-library', data),
   // Main → renderer: agent pushed a paper via POST /v1/library
-  onAddPaperFromApi: (cb) => ipcRenderer.on('add-paper-from-api', (_, paper) => cb(paper)),
+  onAddPaperFromApi:    (cb) => ipcRenderer.on('add-paper-from-api',    (_, paper)   => cb(paper)),
+  // Main → renderer: agent removed a paper via DELETE /v1/library/:arxivId
+  onRemovePaperFromApi: (cb) => ipcRenderer.on('remove-paper-from-api', (_, arxivId) => cb(arxivId)),
+  // Main → renderer: agent updated a note via PATCH /v1/library/:arxivId
+  onUpdateNoteFromApi:  (cb) => ipcRenderer.on('update-note-from-api',  (_, data)    => cb(data)),
 })

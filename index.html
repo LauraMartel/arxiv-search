@@ -650,6 +650,97 @@ function saveLib(){localStorage.setItem('ax_lib',JSON.stringify(library));update
 function saveCfg(){localStorage.setItem('ax_cfg',JSON.stringify(settings))}
 loadState();
 
+// ═══ ACTIONS LAYER ══════════════════════════════════════════
+// Pure business logic — no DOM, no toast(), no CSS mutations.
+// Return { ok: true, … } or { ok: false, error: string }.
+// Shared by UI handlers and external LangChain / LangGraph tools.
+
+async function actionArxivSearch(query, category, maxResults = 10) {
+  try {
+    const q = query && category ? `(ti:${query} OR abs:${query}) AND cat:${category}`
+            : category          ? `cat:${category}`
+            : query             ? `all:${query}`
+            : '*';
+    const params = new URLSearchParams({
+      search_query: q, start: 0,
+      max_results: Math.min(Number(maxResults) || 10, 50),
+      sortBy: 'relevance', sortOrder: 'descending',
+    });
+    const xml = await fetchArxiv(`https://export.arxiv.org/api/query?${params}`);
+    return { ok: true, papers: parseXML(xml) };
+  } catch(e) { return { ok: false, error: e.message }; }
+}
+
+async function actionSavePaper(paper) {
+  try {
+    const arxivId = String(
+      paper.arxivId ||
+      (paper.id||'').replace(/https?:\/\/arxiv\.org\/abs\//,'').replace(/v\d+$/,'') || ''
+    ).trim();
+    if (!arxivId) return { ok: false, error: 'arxivId is required' };
+    const p = { ...paper, arxivId };
+    const existingIdx = library.findIndex(x => x.arxivId === arxivId);
+    let entry;
+    if (existingIdx >= 0) {
+      entry = library[existingIdx];
+    } else {
+      entry = { ...p, arxivId, note: '', savedAt: new Date().toISOString(),
+                savedBy: settings.username || '', zoteroKey: null, driveUrl: null };
+      library.push(entry);
+    }
+    saveLib();
+    return { ok: true, entry };
+  } catch(e) { return { ok: false, error: e.message }; }
+}
+
+function actionRemovePaper(arxivId) {
+  try {
+    const idx = library.findIndex(x => x.arxivId === arxivId);
+    if (idx < 0) return { ok: false, error: 'Paper not in library' };
+    library.splice(idx, 1);
+    saveLib();
+    return { ok: true };
+  } catch(e) { return { ok: false, error: e.message }; }
+}
+
+async function actionZoteroSave(paper) {
+  try {
+    const zoteroKey = await saveToZotero(paper);
+    return { ok: true, zoteroKey };
+  } catch(e) { return { ok: false, error: e.message }; }
+}
+
+async function actionZoteroSync() {
+  try {
+    const remote = await fetchZoteroLibrary();
+    if (!remote.length) return { ok: true, added: 0, updated: 0 };
+    let added = 0, updated = 0;
+    remote.forEach(p => {
+      if (!p.arxivId) return;
+      const existing = library.find(x => x.arxivId === p.arxivId);
+      if (!existing) {
+        library.push({ ...p, note: p.note || '', savedAt: p.savedAt || new Date().toISOString() });
+        added++;
+      } else {
+        if (!existing.zoteroKey && p.zoteroKey) { existing.zoteroKey = p.zoteroKey; updated++; }
+        if (!existing.driveUrl  && p.driveUrl)  { existing.driveUrl  = p.driveUrl;  updated++; }
+      }
+    });
+    saveLib();
+    return { ok: true, added, updated };
+  } catch(e) { return { ok: false, error: e.message }; }
+}
+
+function actionUpdateNote(arxivId, note) {
+  try {
+    const entry = library.find(x => x.arxivId === arxivId);
+    if (!entry) return { ok: false, error: 'Paper not in library' };
+    entry.note = String(note || '').slice(0, 5000);
+    saveLib();
+    return { ok: true };
+  } catch(e) { return { ok: false, error: e.message }; }
+}
+
 // ═══ HELPERS ════════════════════════════════════════════════
 const isoToday=()=>new Date().toISOString().slice(0,10);
 const isoAgo=n=>{const d=new Date();d.setDate(d.getDate()-n);return d.toISOString().slice(0,10)};
@@ -1077,10 +1168,9 @@ function makeLibCard(p){
   el.querySelector('.lc-rm-btn').addEventListener('click',async e=>{
     e.stopPropagation();
     if(!confirm('Remove from library?')) return;
-    // Remove locally
     const entry = library.find(x=>x.arxivId===p.arxivId);
-    library = library.filter(x=>x.arxivId!==p.arxivId);
-    saveLib();
+    const result = actionRemovePaper(p.arxivId);
+    if(!result.ok){ toast(`Remove failed: ${result.error}`); return; }
     renderLib();
     toast('Removed');
     // Remove from Zotero if synced
@@ -1092,7 +1182,7 @@ function makeLibCard(p){
     }
   });
   const ta=el.querySelector('.note-area');let nt;
-  ta.addEventListener('input',()=>{clearTimeout(nt);nt=setTimeout(()=>{const entry=library.find(x=>x.arxivId===p.arxivId);if(entry){entry.note=ta.value.slice(0,5000);saveLib()}},1000)});
+  ta.addEventListener('input',()=>{clearTimeout(nt);nt=setTimeout(()=>{actionUpdateNote(p.arxivId,ta.value)},1000)});
   ta.addEventListener('click',e=>e.stopPropagation());
   return el;
 }
@@ -1541,28 +1631,13 @@ async function syncFromZotero(){
   btn.disabled = true; btn.textContent = '⟳ Syncing…';
   try {
     toast('Fetching Zotero library…', 6000);
-    const remote = await fetchZoteroLibrary();
-    if(!remote.length){ toast('No papers found in Zotero group'); return; }
-
-    let added = 0, updated = 0;
-    remote.forEach(p => {
-      if(!p.arxivId) return;
-      const existing = library.find(x => x.arxivId === p.arxivId);
-      if(!existing){
-        // New paper — add it
-        library.push({ ...p, note: p.note||'', savedAt: p.savedAt||new Date().toISOString() });
-        added++;
-      } else {
-        // Already have it — update Zotero key and Drive URL if missing
-        if(!existing.zoteroKey && p.zoteroKey){ existing.zoteroKey = p.zoteroKey; updated++; }
-        if(!existing.driveUrl  && p.driveUrl) { existing.driveUrl  = p.driveUrl;  updated++; }
-      }
-    });
-
-    saveLib(); renderLib();
-    toast(`Zotero sync done — ${added} new, ${updated} updated ✓`);
-  } catch(e) {
-    toast(`Zotero sync failed: ${e.message.slice(0,100)}`, 5000);
+    const result = await actionZoteroSync();
+    if(!result.ok){ toast(`Zotero sync failed: ${result.error.slice(0,100)}`, 5000); return; }
+    renderLib();
+    const { added, updated } = result;
+    toast(added || updated
+      ? `Zotero sync done — ${added} new, ${updated} updated ✓`
+      : 'Zotero sync done — library up to date ✓');
   } finally {
     btn.disabled = false; btn.textContent = '⟳ Sync Zotero';
   }
@@ -1752,47 +1827,37 @@ async function saveWithIntegrations(p, savebtn){
   let zoteroKey = null;
   let driveUrl  = null;
 
-  // Always save locally first (instant feedback)
-  const arxivId = p.arxivId || (p.id||'').replace(/https?:\/\/arxiv\.org\/abs\//,'').replace(/v\d+$/,'') || '';
-  p = { ...p, arxivId }; // normalise so paperToZoteroItem gets clean ID
+  // ── Local save via action (no inline DOM / library mutation here) ──────────
+  const saveResult = await actionSavePaper(p);
+  if (!saveResult.ok) { toast(`Save failed: ${saveResult.error}`); return; }
+  const entry   = saveResult.entry;
+  const arxivId = entry.arxivId;
 
-  // Prevent duplicates — if already in library, update in place instead of pushing again
-  const existingIdx = library.findIndex(x => x.arxivId === arxivId);
-  let entry;
-  if(existingIdx >= 0){
-    entry = library[existingIdx];
-    // Already local — just re-sync to Zotero/Drive if not yet done
-  } else {
-    entry = { ...p, arxivId, note:'', savedAt:new Date().toISOString(),
-              savedBy: settings.username||'', zoteroKey:null, driveUrl:null };
-    library.push(entry);
-  }
-  saveLib();
   if(savebtn){ savebtn.className='lb ls saved'; savebtn.textContent='✓ In Library'; }
   const modeDesc = useZotero && useDrive ? 'Saving to Zotero + Drive…' :
                    useZotero ? 'Saving to Zotero…' :
                    useDrive  ? 'Uploading to Drive…' : '';
   toast(modeDesc || 'Saved ✓');
 
-  // Zotero (async, doesn't block)
+  // ── Zotero via action (no inline try/catch around API) ────────────────────
   if(useZotero && settings.zoteroKey && settings.zoteroGroup){
     toast('Syncing to Zotero…', 3000);
-    try {
-      zoteroKey = await saveToZotero(p);
+    const z = await actionZoteroSave(entry);
+    if(z.ok){
+      zoteroKey = z.zoteroKey;
       entry.zoteroKey = zoteroKey;
       saveLib();
       toast('Zotero ✓');
-    } catch(e) {
-      toast(`Zotero failed: ${e.message}`, 5000);
-      console.error('Zotero save error:', e);
+    } else {
+      toast(`Zotero failed: ${z.error}`, 5000);
+      console.error('Zotero save error:', z.error);
     }
   }
 
-  // Google Drive PDF + log (async)
+  // ── Google Drive PDF + log (async) — unchanged, out of agent scope ────────
   if(useDrive && settings.driveKey && settings.driveFolder){
     toast('Uploading PDF to Drive…', 5000);
     try {
-      const arxivId = p.arxivId || p.id || '';
       const safePdfId = (arxivId||'').replace(/[^a-zA-Z0-9./v-]/g,'');
       const pdfUrl  = `https://arxiv.org/pdf/${safePdfId}`;
       const pdfResp = await fetch(pdfUrl);
@@ -1803,7 +1868,7 @@ async function saveWithIntegrations(p, savebtn){
       saveLib();
       toast('Drive PDF ✓');
       // Append to CSV log
-      await appendToDriveLog(p, driveUrl, zoteroKey).catch(e=>console.warn('CSV log failed:',e));
+      await appendToDriveLog(entry, driveUrl, zoteroKey).catch(e=>console.warn('CSV log failed:',e));
       // Update Zotero item extra field with Drive URL
       if(zoteroKey && settings.zoteroGroup){
         zoteroFetch(`/groups/${settings.zoteroGroup}/items/${zoteroKey}`, {
@@ -2066,6 +2131,22 @@ if(window.electronAPI?.onAddPaperFromApi){
       saveLib();
       toast(`API: added "${paper.title.slice(0,55)}" ✓`);
     }
+  });
+}
+
+// Receive remove-paper signal from agent via DELETE /v1/library/:arxivId
+if(window.electronAPI?.onRemovePaperFromApi){
+  window.electronAPI.onRemovePaperFromApi(arxivId => {
+    const result = actionRemovePaper(arxivId);
+    if(result.ok) renderLib();
+  });
+}
+
+// Receive update-note signal from agent via PATCH /v1/library/:arxivId
+if(window.electronAPI?.onUpdateNoteFromApi){
+  window.electronAPI.onUpdateNoteFromApi(({arxivId, note}) => {
+    actionUpdateNote(arxivId, note);
+    renderLib();
   });
 }
 
