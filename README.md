@@ -57,13 +57,13 @@ npm start
 
 ### Team Collaboration
 - **Zotero sync** — papers saved to your shared group library automatically
-- **GitHub sync** — push/pull libraries with colleagues via a shared repo
 - Each team member keeps their own file (`library-alice.json`, `library-bob.json`)
 
-### Google Drive Integration
+### Google Drive Integration (Optional)
 - Upload PDFs to a shared Google Drive folder
 - Automatic CSV log (`papers_log.csv`) tracking all saved papers
 - Can be used standalone or combined with Zotero (recommended for teams)
+- Requires a Google Drive API key and authorized access to a shared folder
 
 ### Agent API (Optional)
 - Built-in local HTTP API server for external tool integration
@@ -150,3 +150,17 @@ PDFs will be uploaded automatically when you save papers. A CSV log tracks all s
 - Notes are personal and not included in GitHub sync
 - In Electron mode, all arXiv requests go directly — no third-party proxies
 - In browser mode, some requests may be routed through third-party CORS proxies ([corsproxy.io](https://corsproxy.io) and [api.allorigins.win](https://api.allorigins.win)) to work around browser cross-origin restrictions. These proxies see the request URLs but not your API keys or credentials.
+
+---
+
+## Disclaimer
+
+This application is provided **as-is** for research and educational purposes only. The author(s) make no warranties of any kind, express or implied, and accept no liability for any damages, data loss, security issues, or other problems arising from the use of this software.
+
+**Use at your own risk.** In particular:
+
+- **API keys**: You are responsible for safeguarding your own API keys (OpenAI, Anthropic, Zotero, GitHub, Google Drive). Never share them or commit them to public repositories. The app stores keys locally on your machine, but you are solely responsible for their security.
+- **Third-party services**: This app interacts with external APIs (arXiv, Zotero, GitHub, Google Drive, OpenAI, Anthropic). The author(s) are not responsible for changes, outages, or terms-of-service issues with these services.
+- **No guarantee of correctness**: AI-generated summaries and suggestions may be inaccurate or incomplete. Always verify information against the original papers.
+
+This software is not affiliated with or endorsed by arXiv, Cornell University, Zotero, OpenAI, Anthropic, or any other third party.
