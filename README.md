@@ -1,6 +1,6 @@
 # arXiv Browser
 
-A desktop app for searching, saving, and managing arXiv papers — with Zotero sync, AI summaries, and team library sharing via GitHub.
+A desktop app for searching, saving, and managing arXiv papers — with Zotero sync, AI summaries, Google Drive storage, and team library sharing via GitHub.
 
 ---
 
@@ -13,12 +13,12 @@ A desktop app for searching, saving, and managing arXiv papers — with Zotero s
 ### First time setup
 
 1. Download and unzip this folder
-2. Open **Command Prompt as Administrator**
-   - Press Windows key, type `cmd`
-   - Right-click **Command Prompt** → **Run as administrator**
+2. Open a terminal:
+   - **Windows**: Press Windows key, type `cmd`, right-click **Command Prompt** → **Run as administrator**
+   - **Mac/Linux**: Open Terminal
 3. Navigate to the app folder:
    ```
-   cd C:\path\to\arxiv-build
+   cd /path/to/arxiv-build
    ```
 4. Install dependencies (one time only):
    ```
@@ -27,12 +27,10 @@ A desktop app for searching, saving, and managing arXiv papers — with Zotero s
 
 ### Launch the app
 
-From the same folder in Command Prompt (no admin needed after first install):
+From the same folder in your terminal (no admin needed after first install):
 ```
 npm start
 ```
-
-Or double-click **START.bat** in the folder.
 
 ---
 
@@ -62,6 +60,23 @@ Or double-click **START.bat** in the folder.
 - **GitHub sync** — push/pull libraries with colleagues via a shared repo
 - Each team member keeps their own file (`library-alice.json`, `library-bob.json`)
 
+### Google Drive Integration
+- Upload PDFs to a shared Google Drive folder
+- Automatic CSV log (`papers_log.csv`) tracking all saved papers
+- Can be used standalone or combined with Zotero (recommended for teams)
+
+### Agent API (Optional)
+- Built-in local HTTP API server for external tool integration
+- REST endpoints to search arXiv, manage library, and update notes
+- Bearer token authentication with key management UI
+- Not required for normal use — intended for advanced automation workflows
+
+### AI Agent (Optional)
+- Separate LangGraph-based agent server (`agent/server.js`)
+- Conversational interface that can search, save, and manage papers autonomously
+- Requires its own `npm install` inside the `agent/` folder
+- Experimental — not fully integrated into the main app
+
 ---
 
 ## Settings
@@ -73,10 +88,13 @@ Open the **Settings** tab to configure:
 | AI Provider | OpenAI or Anthropic |
 | API Key | Your OpenAI or Anthropic key |
 | Username | Your name (used for Zotero and GitHub attribution) |
+| Storage Mode | Local only, Zotero, Google Drive, or Zotero + Google Drive |
 | GitHub Repo | `owner/repo` format, e.g. `mylab/arxiv-library` |
 | GitHub Token | Personal access token with `repo` scope |
 | Zotero API Key | From [zotero.org/settings/keys](https://www.zotero.org/settings/keys) — enable group read/write |
 | Zotero Group ID | The number in your group URL: `zotero.org/groups/`**`1234567`** |
+| Google Drive API Key | Your Google Drive API key for PDF uploads |
+| Drive Folder ID | The ID of the shared Google Drive folder |
 
 ---
 
@@ -103,6 +121,18 @@ Papers saved with **+ Library** will automatically appear in your Zotero group l
 
 ---
 
+## Google Drive Setup
+
+1. Create a Google Drive API key with access to the Drive API
+2. Create a shared folder in Google Drive for your team
+3. Copy the folder ID from the URL: `drive.google.com/drive/folders/`**`<folder-id>`**
+4. Paste the API key and folder ID into Settings
+5. Set storage mode to **Google Drive** or **Zotero + Google Drive**
+
+PDFs will be uploaded automatically when you save papers. A CSV log tracks all saved papers in the folder.
+
+---
+
 ## Keyboard Shortcuts
 
 | Key | Action |
@@ -120,4 +150,3 @@ Papers saved with **+ Library** will automatically appear in your Zotero group l
 - Notes are personal and not included in GitHub sync
 - In Electron mode, all arXiv requests go directly — no third-party proxies
 - In browser mode, some requests may be routed through third-party CORS proxies ([corsproxy.io](https://corsproxy.io) and [api.allorigins.win](https://api.allorigins.win)) to work around browser cross-origin restrictions. These proxies see the request URLs but not your API keys or credentials.
-
