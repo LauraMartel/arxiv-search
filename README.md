@@ -27,7 +27,9 @@ A desktop app for searching, saving, and managing arXiv papers — with Zotero s
 
 ### Launch the app
 
-From the same folder in your terminal (no admin needed after first install):
+**Windows**: Double-click **BUILD.bat** — it will install dependencies automatically on first run and launch the app. It requests administrator rights if needed.
+
+**Mac/Linux**: From the same folder in your terminal:
 ```
 npm start
 ```
