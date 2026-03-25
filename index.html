@@ -1,0 +1,2169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://export.arxiv.org https://arxiv.org https://api.anthropic.com https://api.openai.com https://api.github.com https://api.zotero.org https://www.zotero.org https://www.googleapis.com https://corsproxy.io https://api.allorigins.win; img-src 'self' data:; media-src 'none'; object-src 'none'">
+<title>arXiv Browser</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f7f5f0;--sur:#fff;--bdr:#e0dbd2;--bdr2:#c8c0b4;
+  --ink:#1a1714;--ink2:#5a5650;--ink3:#9c9590;
+  --acc:#b84c1e;--acc2:#2a6496;--grn:#2d7a4f;--pur:#6b4fa0;
+  --hi:#fff8e7
+}
+html{font-size:16px}
+body{background:var(--bg);color:var(--ink);font-family:'IBM Plex Mono',monospace;min-height:100vh;-webkit-font-smoothing:antialiased}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:2px}
+
+/* TITLEBAR drag area on mac */
+.titlebar{-webkit-app-region:drag;height:0}
+
+/* TABS */
+.tabs{display:flex;background:var(--sur);border-bottom:2px solid var(--ink);position:sticky;top:0;z-index:200;-webkit-app-region:no-drag}
+.tab{flex:1;padding:.72rem .4rem;text-align:center;font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;border:none;background:none;color:var(--ink3);border-right:1px solid var(--bdr);font-family:'IBM Plex Mono',monospace;transition:all .15s}
+.tab:last-child{border-right:none}
+.tab.on{background:var(--ink);color:var(--bg)}
+.tab:hover:not(.on){background:var(--hi);color:var(--ink)}
+.badge{display:inline-block;background:var(--acc);color:#fff;font-size:.52rem;padding:.04rem .28rem;margin-left:.25rem;vertical-align:middle}
+.tab.on .badge{background:#fff;color:var(--ink)}
+
+/* HEADER */
+.hdr{background:var(--sur);border-bottom:1px solid var(--bdr);padding:1rem 1.5rem .9rem}
+.hdr-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:.9rem}
+.logo{font-family:'Lora',serif;font-size:1.35rem;font-weight:600}
+.logo span{color:var(--acc)}
+.logo-sub{font-size:.56rem;color:var(--ink3);letter-spacing:.16em;text-transform:uppercase;margin-top:.1rem}
+.row1{display:flex;gap:.5rem;flex-wrap:wrap;align-items:stretch}
+.row2{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-top:.5rem}
+
+/* COMBOBOX */
+.cw{position:relative;flex:0 0 auto;min-width:220px}
+.ci{width:100%;height:38px;background:var(--sur);border:1px solid var(--bdr2);color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:.73rem;padding:0 .75rem;outline:none;cursor:pointer}
+.ci:focus{border-color:var(--acc)}
+.cdrop{position:absolute;top:100%;left:0;right:0;min-width:300px;background:var(--sur);border:1px solid var(--bdr2);border-top:none;box-shadow:0 4px 20px rgba(0,0,0,.14);z-index:300;max-height:270px;overflow-y:auto;display:none}
+.cdrop.open{display:block}
+.cg{font-size:.56rem;color:var(--ink3);text-transform:uppercase;letter-spacing:.12em;padding:.5rem .75rem .25rem;border-bottom:1px solid var(--bdr);background:var(--bg);position:sticky;top:0}
+.ci-item{padding:.44rem .75rem;cursor:pointer;display:flex;align-items:baseline;gap:.6rem;border-bottom:1px solid var(--bdr)}
+.ci-item:hover,.ci-item.hi{background:var(--hi)}
+.ci-id{font-size:.7rem;color:var(--acc2);font-weight:500;flex-shrink:0}
+.ci-name{font-size:.66rem;color:var(--ink2)}
+
+/* KW / CONTROLS */
+.cg2-sel{height:38px;background:var(--sur);border:1px solid var(--bdr2);color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:.68rem;padding:0 .5rem;outline:none;cursor:pointer;flex-shrink:0}
+.cg2-sel:focus{border-color:var(--acc)}
+.kw{flex:1;min-width:180px;position:relative;display:flex;align-items:center}
+.kwi{width:100%;height:38px;background:var(--sur);border:1px solid var(--bdr2);color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:.73rem;padding:0 1.9rem 0 .75rem;outline:none}
+.kwi:focus{border-color:var(--acc)}
+.kwi::placeholder{color:var(--ink3)}
+.kwx{position:absolute;right:.5rem;background:none;border:none;color:var(--ink3);cursor:pointer;font-size:.95rem;display:none;line-height:1}
+.sbtn{height:38px;padding:0 1.5rem;background:var(--acc);color:#fff;border:none;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:.73rem;font-weight:500;transition:opacity .15s}
+.sbtn:hover{opacity:.88}.sbtn:disabled{opacity:.4;cursor:default}
+.drow{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+.df{display:flex;align-items:center;gap:.35rem}
+.df label{font-size:.6rem;color:var(--ink3);text-transform:uppercase;letter-spacing:.08em;white-space:nowrap}
+.df input[type=date]{height:34px;background:var(--sur);border:1px solid var(--bdr2);color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:.68rem;padding:0 .5rem;outline:none;color-scheme:light}
+.pset{display:flex;gap:.3rem;flex-wrap:wrap}
+.ps{height:34px;padding:0 .65rem;background:none;border:1px solid var(--bdr2);color:var(--ink3);font-family:'IBM Plex Mono',monospace;font-size:.6rem;cursor:pointer;transition:all .12s}
+.ps.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.cg2{display:flex;align-items:center;gap:.35rem}
+.cg2 label{font-size:.6rem;color:var(--ink3);text-transform:uppercase;letter-spacing:.08em}
+.cg2 select{height:34px;background:var(--sur);border:1px solid var(--bdr2);color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:.68rem;padding:0 .5rem;outline:none;appearance:none;cursor:pointer}
+
+/* RESULT BAR / PBAR */
+.rbar{padding:.5rem 1.5rem;border-bottom:1px solid var(--bdr);font-size:.63rem;color:var(--ink3);background:var(--bg)}
+.rbar strong{color:var(--acc);font-weight:500}
+.pbar{height:2px;background:var(--bdr);overflow:hidden;display:none}
+.pfill{height:100%;width:100%;background:var(--acc);animation:prog 1.2s ease-in-out infinite;transform:translateX(-100%)}
+@keyframes prog{0%{transform:translateX(-100%)}50%{transform:translateX(0)}100%{transform:translateX(100%)}}
+
+/* FEED */
+.feed{max-width:800px;margin:0 auto;padding:1.25rem 1.25rem 4rem}
+.blank{text-align:center;padding:5rem 1rem}
+.blank-i{font-size:2.5rem;opacity:.15;margin-bottom:.85rem}
+.blank-t{font-family:'Lora',serif;font-size:1.25rem;color:var(--ink2);margin-bottom:.4rem}
+.blank-s{font-size:.7rem;color:var(--ink3);line-height:1.75;max-width:320px;margin:0 auto}
+.err-t{color:var(--acc)}
+
+/* FIND BAR */
+#find-bar { display:none }
+#find-bar.open { display:flex !important }
+.find-hl { background:#ffe066; color:#000; border-radius:2px; }
+.find-hl.find-current { background:#ff9500; color:#fff; }
+
+/* CARD */
+.card{background:var(--sur);border:1px solid var(--bdr);margin-bottom:.9rem;box-shadow:0 1px 4px rgba(0,0,0,.07);opacity:0;transform:translateY(6px);animation:up .3s ease forwards}
+@keyframes up{to{opacity:1;transform:translateY(0)}}
+.card-body{padding:1.1rem 1.25rem .85rem;cursor:pointer;user-select:none}
+.dl{font-size:.61rem;margin-bottom:.5rem;display:flex;align-items:center;gap:.45rem;flex-wrap:wrap}
+.sub{color:var(--acc);font-weight:500}
+.upd{font-size:.57rem;color:var(--ink3);border:1px solid var(--bdr2);padding:.06rem .3rem}
+.tags{display:flex;gap:.32rem;flex-wrap:wrap;margin-bottom:.55rem;align-items:center}
+.tag{font-size:.56rem;padding:.09rem .35rem;border:1px solid;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+.tcat{border-color:var(--acc2);color:var(--acc2)}
+.tsec{border-color:var(--bdr2);color:var(--ink3)}
+.tdoi{border-color:rgba(184,76,30,.4);color:var(--acc);text-decoration:none}
+.title{font-family:'Lora',serif;font-size:1.02rem;line-height:1.48;color:var(--ink);font-weight:400;margin-bottom:.42rem}
+.authors{font-size:.65rem;color:var(--ink3);line-height:1.5}
+.jref{font-size:.61rem;color:var(--ink2);margin-top:.3rem;font-style:italic}
+.abs{overflow:hidden;max-height:0;transition:max-height .3s ease}
+.abs.open{max-height:800px}
+.abs-in{padding:.75rem 1.25rem;border-top:1px solid var(--bdr);font-size:.71rem;line-height:1.85;color:var(--ink2)}
+.cfoot{display:flex;align-items:center;justify-content:space-between;padding:.5rem 1.25rem;border-top:1px solid var(--bdr);background:var(--bg);flex-wrap:wrap;gap:.35rem}
+.abtn{background:none;border:none;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:.63rem;color:var(--ink3);padding:0}
+.abtn:hover{color:var(--acc)}
+.links{display:flex;gap:.32rem;flex-wrap:wrap;align-items:center}
+.lb{font-size:.62rem;text-decoration:none;padding:.22rem .55rem;border:1px solid;font-family:'IBM Plex Mono',monospace;white-space:nowrap;display:inline-flex;align-items:center;gap:.2rem;cursor:pointer;background:none;transition:all .12s}
+.la{border-color:rgba(42,100,150,.35);color:var(--acc2)}.la:hover{background:rgba(42,100,150,.07)}
+.lv{border-color:rgba(184,76,30,.35);color:var(--acc)}.lv:hover{background:rgba(184,76,30,.07)}
+.ld{border-color:var(--bdr2);color:var(--ink2)}.ld:hover{border-color:var(--ink2)}
+.ls{border-color:rgba(45,122,79,.4);color:var(--grn)}.ls:hover{background:rgba(45,122,79,.07)}
+.ls.saved{background:var(--grn);color:#fff;border-color:var(--grn)}
+
+/* LIBRARY */
+.lib{max-width:960px;margin:0 auto;padding:1.5rem 1.25rem 4rem}
+.lhdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.75rem}
+.ltitle{font-family:'Lora',serif;font-size:1.4rem}
+.lacts{display:flex;gap:.4rem;flex-wrap:wrap}
+.lbtn{height:32px;padding:0 .8rem;background:none;border:1px solid var(--bdr2);color:var(--ink2);font-family:'IBM Plex Mono',monospace;font-size:.63rem;cursor:pointer;display:inline-flex;align-items:center;gap:.3rem;white-space:nowrap;transition:all .15s}
+.lbtn:hover{border-color:var(--ink);color:var(--ink)}
+.lbtn:disabled{opacity:.4;cursor:default}
+.lbtn.pri{background:var(--acc);color:#fff;border-color:var(--acc)}
+.lbtn.grn{background:var(--grn);color:#fff;border-color:var(--grn)}
+.fbar{font-size:.63rem;color:var(--grn);padding:.38rem .75rem;background:#f0faf4;border:1px solid #b8d8c8;margin-bottom:.75rem}
+.ghbar{font-size:.63rem;color:var(--ink3);padding:.38rem .75rem;background:#f0f4f8;border:1px solid #c8d8e8;margin-bottom:.75rem}
+.collbar{display:flex;align-items:center;gap:.4rem;margin-bottom:.85rem;flex-wrap:wrap}
+.chip{height:28px;padding:0 .72rem;border:1px solid var(--bdr2);background:none;font-family:'IBM Plex Mono',monospace;font-size:.61rem;cursor:pointer;color:var(--ink2);display:inline-flex;align-items:center;gap:.28rem;transition:all .12s}
+.chip:hover{border-color:var(--ink2)}
+.chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip-c{opacity:.6;font-size:.57rem}
+.lsearch{width:100%;height:37px;background:var(--sur);border:1px solid var(--bdr2);color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:.72rem;padding:0 .8rem;outline:none;margin-bottom:.85rem}
+.lsearch:focus{border-color:var(--acc)}
+.lsearch::placeholder{color:var(--ink3)}
+
+/* LIB CARD */
+.lc{background:var(--sur);border:1px solid var(--bdr);margin-bottom:.72rem;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.lc-body{padding:.9rem 1.1rem .65rem;cursor:pointer}
+.lc-meta{font-size:.59rem;color:var(--ink3);margin-bottom:.32rem;display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+.lcat{color:var(--acc2)}.ldoi{color:var(--acc);text-decoration:none}
+.lc-title{font-family:'Lora',serif;font-size:.95rem;line-height:1.42;color:var(--ink);margin-bottom:.3rem}
+.lc-authors{font-size:.63rem;color:var(--ink3)}
+.labs{overflow:hidden;max-height:0;transition:max-height .3s ease}
+.labs.open{max-height:600px}
+.labs-in{padding:.6rem 1.1rem;border-top:1px solid var(--bdr);font-size:.69rem;line-height:1.85;color:var(--ink2)}
+.note-area{width:100%;border:none;border-top:1px solid var(--bdr);padding:.6rem 1.1rem;font-family:'IBM Plex Mono',monospace;font-size:.7rem;color:var(--ink);background:var(--hi);resize:vertical;min-height:72px;outline:none;line-height:1.65}
+.note-area::placeholder{color:var(--ink3)}
+.lc-foot{display:flex;align-items:center;justify-content:space-between;padding:.42rem 1.1rem;border-top:1px solid var(--bdr);background:var(--bg);flex-wrap:wrap;gap:.35rem}
+
+/* SETTINGS */
+.settings{max-width:640px;margin:0 auto;padding:1.5rem 1.25rem 4rem}
+.set-title{font-family:'Lora',serif;font-size:1.4rem;margin-bottom:1.5rem}
+.set-sec{background:var(--sur);border:1px solid var(--bdr);padding:1.35rem;margin-bottom:1rem}
+.set-sec-t{font-size:.68rem;font-weight:500;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);margin-bottom:1rem;padding-bottom:.5rem;border-bottom:1px solid var(--bdr)}
+.set-row{display:flex;flex-direction:column;gap:.3rem;margin-bottom:.9rem}
+.set-row:last-child{margin-bottom:0}
+.set-label{font-size:.64rem;color:var(--ink2);letter-spacing:.03em}
+.set-label span{color:var(--ink3);font-size:.59rem;margin-left:.3rem}
+.set-input{height:38px;background:var(--bg);border:1px solid var(--bdr2);color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:.73rem;padding:0 .75rem;outline:none;width:100%}
+.set-input:focus{border-color:var(--acc)}
+.set-input::placeholder{color:var(--ink3)}
+.set-select{height:38px;background:var(--bg);border:1px solid var(--bdr2);color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:.73rem;padding:0 .75rem;outline:none;width:100%;appearance:none;cursor:pointer}
+.set-hint{font-size:.62rem;color:var(--ink3);line-height:1.55;margin-top:.3rem}
+.set-hint a{color:var(--acc2);text-decoration:none}
+.set-hint a:hover{text-decoration:underline}
+.status-badge{display:inline-block;font-size:.63rem;padding:.3rem .65rem;margin-top:.4rem;border:1px solid}
+.status-ok{background:#f0faf4;color:var(--grn);border-color:#b8d8c8}
+.status-no{background:#fef0eb;color:var(--acc);border-color:rgba(184,76,30,.3)}
+.save-btn{height:40px;padding:0 1.75rem;background:var(--acc);color:#fff;border:none;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:.73rem;font-weight:500;margin-top:1.25rem;transition:opacity .15s}
+.save-btn:hover{opacity:.88}
+
+/* AI */
+.ai-page{max-width:820px;margin:0 auto;padding:1.5rem 1.25rem 4rem}
+.ai-hdr{margin-bottom:1.5rem}
+.ai-title{font-family:'Lora',serif;font-size:1.4rem}
+.ai-meta{font-size:.63rem;color:var(--ink3);margin-top:.28rem}
+.ai-sec{margin-bottom:1.5rem;background:var(--sur);border:1px solid var(--bdr);padding:1.35rem}
+.ai-sec-t{font-size:.78rem;font-weight:500;margin-bottom:.35rem}
+.ai-sec-s{font-size:.66rem;color:var(--ink3);margin-bottom:.9rem;line-height:1.6}
+.ai-btn{height:35px;padding:0 1.1rem;background:var(--pur);color:#fff;border:none;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:.7rem;transition:opacity .15s}
+.ai-btn:hover{opacity:.88}.ai-btn:disabled{opacity:.4;cursor:default}
+.sugs{margin-top:1rem;display:flex;flex-direction:column;gap:.5rem}
+.sug{background:var(--bg);border:1px solid var(--bdr);padding:.7rem .9rem}
+.sug-q{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.3rem}
+.sug-q code{font-size:.7rem;color:var(--acc2);background:#e8f0f8;padding:.14rem .4rem}
+.sug-sb{background:none;border:1px solid rgba(42,100,150,.4);color:var(--acc2);font-family:'IBM Plex Mono',monospace;font-size:.6rem;cursor:pointer;padding:.14rem .48rem;white-space:nowrap}
+.sug-sb:hover{background:rgba(42,100,150,.07)}
+.sug-r{font-size:.65rem;color:var(--ink2);line-height:1.5}
+.chat-win{min-height:200px;max-height:380px;overflow-y:auto;border:1px solid var(--bdr);padding:.8rem;background:var(--bg);margin-bottom:.5rem;display:flex;flex-direction:column;gap:.72rem}
+.chat-empty{font-size:.7rem;color:var(--ink3);line-height:2.3;text-align:center;padding:2rem 0}
+.chat-empty em{color:var(--ink2);font-style:normal}
+.cmsg{padding:.6rem .75rem;border:1px solid var(--bdr)}
+.cmsg.user{background:var(--sur);border-color:var(--bdr2)}
+.cmsg.asst{background:var(--sur);border-left:3px solid var(--pur)}
+.cmsg.err{border-left-color:var(--acc)}
+.cmsg-role{font-size:.57rem;color:var(--ink3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.3rem}
+.cmsg-txt{font-size:.72rem;line-height:1.75;color:var(--ink);white-space:pre-wrap}
+.thinking{color:var(--ink3);font-style:italic}
+.chat-row{display:flex;gap:.5rem}
+.chat-in{flex:1;height:38px;background:var(--sur);border:1px solid var(--bdr2);color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:.73rem;padding:0 .8rem;outline:none}
+.chat-in:focus{border-color:var(--pur)}
+.chat-in:disabled{opacity:.5}
+.chat-send{height:38px;padding:0 1.1rem;background:var(--pur);color:#fff;border:none;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:.73rem}
+.chat-send:disabled{opacity:.4;cursor:default}
+
+/* MODALS */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;align-items:center;justify-content:center}
+.overlay.open{display:flex}
+.modal{background:var(--sur);border:2px solid var(--ink);padding:1.6rem;min-width:300px;max-width:460px;width:90%;box-shadow:0 6px 24px rgba(0,0,0,.15)}
+.modal.wide{max-width:640px}
+.modal-t{font-family:'Lora',serif;font-size:1.1rem;margin-bottom:1rem}
+.modal-in{width:100%;height:38px;border:1px solid var(--bdr2);font-family:'IBM Plex Mono',monospace;font-size:.73rem;padding:0 .75rem;outline:none;margin-bottom:.8rem}
+.modal-in:focus{border-color:var(--acc)}
+.macts{display:flex;gap:.5rem;justify-content:flex-end;margin-top:.6rem}
+.mbtn{height:34px;padding:0 1.1rem;border:1px solid var(--bdr2);background:none;font-family:'IBM Plex Mono',monospace;font-size:.68rem;cursor:pointer}
+.mbtn:hover{border-color:var(--ink)}
+.mbtn.pri{background:var(--acc);color:#fff;border-color:var(--acc)}
+.mbtn.grn{background:var(--grn);color:#fff;border-color:var(--grn)}
+.cpick{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.8rem}
+.cpi{display:inline-flex;height:28px;padding:0 .72rem;border:1px solid var(--bdr2);cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--ink2);align-items:center}
+.cpi.on{background:var(--acc2);color:#fff;border-color:var(--acc2)}
+.bib-pre{font-family:'IBM Plex Mono',monospace;font-size:.6rem;background:var(--bg);border:1px solid var(--bdr2);padding:.8rem;max-height:300px;overflow:auto;white-space:pre;line-height:1.7;margin-bottom:.8rem;color:var(--ink2)}
+
+/* TOAST */
+.toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%) translateY(90px);background:var(--ink);color:var(--bg);font-size:.68rem;font-family:'IBM Plex Mono',monospace;padding:.6rem 1.1rem;box-shadow:0 4px 18px rgba(0,0,0,.2);z-index:9999;transition:transform .28s ease;pointer-events:none;white-space:nowrap;border-radius:1px}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+/* LOCAL API SERVER */
+.api-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--bdr2);vertical-align:middle;flex-shrink:0;transition:background .2s}
+.api-dot.on{background:var(--grn)}
+.api-table{width:100%;border-collapse:collapse;margin:.65rem 0;font-size:.63rem}
+.api-table th{text-align:left;padding:.32rem .45rem;font-size:.56rem;color:var(--ink3);text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid var(--bdr);font-weight:500}
+.api-table td{padding:.38rem .45rem;border-bottom:1px solid var(--bdr);vertical-align:middle;color:var(--ink2)}
+.api-table tr:last-child td{border-bottom:none}
+.api-table code{font-family:'IBM Plex Mono',monospace;color:var(--ink3);letter-spacing:.03em}
+.key-flash{background:#f0faf4;border:1px solid #b8d8c8;padding:.65rem .85rem;margin:.7rem 0;font-size:.68rem;color:var(--grn);word-break:break-all;line-height:1.65;display:none}
+.key-flash.show{display:block}
+.api-docs-toggle{background:none;border:none;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:.63rem;color:var(--acc2);padding:0;margin-top:.5rem;text-decoration:underline;display:inline-block}
+.api-docs-body{display:none;margin-top:.65rem}.api-docs-body.open{display:block}
+.api-code{background:var(--bg);border:1px solid var(--bdr);padding:.55rem .75rem;font-size:.61rem;font-family:'IBM Plex Mono',monospace;color:var(--ink2);line-height:1.75;overflow-x:auto;white-space:pre;margin:.28rem 0}
+</style>
+</head>
+<body>
+<div class="titlebar"></div>
+
+<!-- TABS -->
+<nav class="tabs">
+  <button class="tab on" onclick="setTab('search')">🔍 Search</button>
+  <button class="tab" onclick="setTab('library')">📚 Library <span class="badge" id="lib-badge">0</span></button>
+<button class="tab" onclick="setTab('ai')">🤖 AI <span id="ai-lock">🔒</span></button>
+  <button class="tab" onclick="setTab('settings')">🔑 APIs</button>
+</nav>
+
+<!-- ══ SEARCH ══ -->
+<div id="tab-search">
+  <header class="hdr">
+    <div class="hdr-top">
+      <div><div class="logo">arXiv <span>Browser</span></div><div class="logo-sub">Preprint search &amp; library</div></div>
+    </div>
+    <div class="row1">
+      <div class="cw" id="cat-wrap">
+        <input class="ci" id="cat-input" type="text" placeholder="Category…" autocomplete="off" spellcheck="false" readonly/>
+        <div class="cdrop" id="cat-drop"></div>
+      </div>
+      <select class="cg2-sel" id="search-field" title="Search in…">
+        <option value="all">All fields</option>
+        <option value="ti">Title only</option>
+        <option value="abs">Abstract only</option>
+        <option value="au">Author</option>
+        <option value="ti+abs">Title + Abstract</option>
+      </select>
+      <div class="kw">
+        <input class="kwi" id="kw-input" type="text" placeholder="Keywords, author, title…"/>
+        <button class="kwx" id="kwx">✕</button>
+      </div>
+      <button class="sbtn" id="sbtn" onclick="doSearch()">Search</button>
+    </div>
+    <div class="row2">
+      <div class="drow">
+        <div class="df"><label>From</label><input type="date" id="df"/></div>
+        <div class="df"><label>To</label><input type="date" id="dt"/></div>
+        <div class="pset">
+          <button class="ps" data-d="7">7d</button>
+          <button class="ps on" data-d="30">30d</button>
+          <button class="ps" data-d="90">3mo</button>
+          <button class="ps" data-d="365">1yr</button>
+          <button class="ps" data-d="0">All</button>
+        </div>
+      </div>
+      <div class="cg2"><label>Sort</label>
+        <select id="sort-by">
+          <option value="submittedDate">Newest</option>
+          <option value="lastUpdatedDate">Updated</option>
+          <option value="relevance">Relevance</option>
+        </select>
+      </div>
+      <div class="cg2"><label>Show</label>
+        <select id="max-res">
+          <option value="25">25 / page</option><option value="50" selected>50 / page</option><option value="100">100 / page</option><option value="200">200 / page</option><option value="500">500 / page</option>
+        </select>
+      </div>
+    </div>
+  </header>
+  <div class="rbar" id="rbar">Select a category and press Search</div>
+  <div id="load-more-bar" style="display:none;padding:.5rem 1.5rem;border-bottom:1px solid var(--bdr)"></div>
+  <div class="pbar" id="pbar"><div class="pfill"></div></div>
+  <div class="feed" id="feed">
+    <div class="blank"><div class="blank-i">◎</div><div class="blank-t">Pick a category to start</div><div class="blank-s">Click the Category field, start typing to filter, then press Search.</div></div>
+  </div>
+</div>
+
+<!-- ══ LIBRARY ══ -->
+<div id="tab-library" style="display:none">
+  <div class="lib">
+    <div class="lhdr">
+      <div class="ltitle">My Library</div>
+      <div class="lacts">
+        <button class="lbtn" id="zotero-sync-btn" style="display:none" onclick="syncFromZotero()">⟳ Sync Zotero</button>
+        <button class="lbtn" id="gh-pull-btn" style="display:none" onclick="ghPull()">⬇ Pull GitHub</button>
+        <button class="lbtn" id="gh-push-btn" style="display:none" onclick="ghPush()">⬆ Push GitHub</button>
+        <button class="lbtn" onclick="importJSON()">⬆ Import JSON</button>
+        <button class="lbtn grn" onclick="openBib()">𝐿 BibTeX</button>
+        <button class="lbtn pri" onclick="exportJSON()">⬇ Export JSON</button>
+      </div>
+    </div>
+    <div id="gh-bar" style="display:none" class="ghbar"></div>
+    <div class="collbar" id="collbar"></div>
+    <input class="lsearch" id="lib-search" placeholder="Search title, author, note…" oninput="renderLib()"/>
+    <div id="lib-feed"></div>
+  </div>
+</div>
+
+<!-- ══ AI ══ -->
+
+<div id="tab-ai" style="display:none">
+  <div class="ai-page">
+    <div class="ai-hdr">
+      <div class="ai-title">AI Agent</div>
+      <div class="ai-meta" id="ai-meta">Configure AI in Settings to enable</div>
+    </div>
+    <div id="ai-no-key" class="blank">
+      <div class="blank-i">🔑</div>
+      <div class="blank-t">API key required</div>
+      <div class="blank-s">Go to the <strong>APIs</strong> tab and enter your OpenAI or Anthropic key. Your key is stored locally and only sent directly to the AI provider.</div>
+    </div>
+    <div id="ai-content" style="display:none">
+      <div class="ai-sec">
+        <div class="ai-sec-t">📡 Discover similar papers</div>
+        <p class="ai-sec-s">AI analyzes your library and generates targeted arXiv search queries.</p>
+        <button class="ai-btn" id="sug-btn" onclick="doSuggest()">Generate suggestions</button>
+        <div class="sugs" id="sugs"></div>
+      </div>
+      <div class="ai-sec">
+        <div class="ai-sec-t">💬 Chat with your library</div>
+        <p class="ai-sec-s">Ask questions about your saved papers — themes, methods, connections, research gaps.</p>
+        <div class="chat-win" id="chat-win">
+          <div class="chat-empty">
+            <p>Try: <em>"What are the main themes in my library?"</em></p>
+            <p>Or: <em>"Which papers compare transformer architectures?"</em></p>
+            <p>Or: <em>"What research gaps do you see in my collection?"</em></p>
+          </div>
+        </div>
+        <div class="chat-row">
+          <input class="chat-in" id="chat-in" placeholder="Ask about your library…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat()}"/>
+          <button class="chat-send" id="chat-send" onclick="sendChat()">Send</button>
+        </div>
+        <button class="lbtn" style="margin-top:.6rem" onclick="clearChat()">Clear conversation</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ APIs ══ -->
+<div id="tab-settings" style="display:none">
+  <div class="settings">
+    <div class="set-title">APIs</div>
+
+    <div style="font-size:.57rem;text-transform:uppercase;letter-spacing:.11em;color:var(--ink3);margin-bottom:.65rem;padding-left:.1rem">External Services</div>
+
+    <div class="set-sec">
+      <div class="set-sec-t">🤖 AI Agent</div>
+      <div class="set-row">
+        <label class="set-label">Provider</label>
+        <select class="set-select" id="set-provider">
+          <option value="openai">OpenAI (GPT-4o-mini — fast, affordable)</option>
+          <option value="anthropic">Anthropic (Claude Haiku — fast, affordable)</option>
+        </select>
+      </div>
+      <div class="set-row">
+        <label class="set-label">API Key <span>— stored on this computer only, sent only to the AI provider</span></label>
+        <input class="set-input" id="set-apikey" type="password" placeholder="sk-… or sk-ant-…"/>
+        <div id="set-ai-status"></div>
+        <p class="set-hint">
+          Get a free-tier key: <a href="#" onclick="openUrl('https://platform.openai.com/api-keys')">OpenAI</a> ·
+          <a href="#" onclick="openUrl('https://console.anthropic.com')">Anthropic</a>
+        </p>
+      </div>
+      <div class="set-row">
+        <label class="set-label">Model override <span>— leave blank for default (gpt-4o-mini or claude-haiku)</span></label>
+        <input class="set-input" id="set-model" type="text" placeholder="e.g. gpt-4o  or  claude-opus-4-6"/>
+      </div>
+    </div>
+
+    <div class="set-sec">
+      <div class="set-sec-t">🔄 GitHub Sync <span style="font-size:.6rem;color:var(--ink3);font-weight:400;text-transform:none;letter-spacing:0">— share your library with colleagues</span></div>
+      <div class="set-row">
+        <label class="set-label">Your name <span>— shown on papers you save, so colleagues know who added them</span></label>
+        <input class="set-input" id="set-username" type="text" placeholder="e.g. Alice, Dr. Smith…"/>
+      </div>
+      <div class="set-row">
+        <label class="set-label">Personal Access Token <span>— github.com → Settings → Developer Settings → Tokens (Classic) → repo scope</span></label>
+        <input class="set-input" id="set-ghtoken" type="password" placeholder="ghp_…"/>
+      </div>
+      <div class="set-row">
+        <label class="set-label">Repository</label>
+        <input class="set-input" id="set-ghrepo" type="text" placeholder="owner/repo-name"/>
+      </div>
+      <div class="set-row">
+        <label class="set-label">Branch</label>
+        <input class="set-input" id="set-ghbranch" type="text" placeholder="main"/>
+        <p class="set-hint">Colleagues with the same settings can Push/Pull to share the library. Merge is automatic (no duplicates).</p>
+      </div>
+      <div id="set-gh-status"></div>
+    </div>
+
+    <div class="set-sec">
+      <div class="set-sec-t">📚 Zotero <span style="font-size:.6rem;color:var(--ink3);font-weight:400;text-transform:none;letter-spacing:0">— shared lab reference library</span></div>
+      <div class="set-row">
+        <label class="set-label">API Key <span>— zotero.org → Settings → Feeds/API → Create new private key (Read/Write access to groups)</span></label>
+        <input class="set-input" id="set-zotero-key" type="password" placeholder="your Zotero API key"/>
+      </div>
+      <div class="set-row">
+        <label class="set-label">Group Library ID <span>— visible in URL of your group: zotero.org/groups/<strong>123456</strong>/…</span></label>
+        <input class="set-input" id="set-zotero-group" type="text" placeholder="e.g. 1234567"/>
+      </div>
+      <div class="set-row" style="display:flex;gap:.5rem;align-items:center">
+        <button class="sbtn" onclick="testZotero()" style="font-size:.7rem">Test connection</button>
+        <div id="set-zotero-status" style="font-size:.7rem;color:var(--ink3)"></div>
+      </div>
+      <p class="set-hint">
+        Create a free group at <a href="#" onclick="openUrl('https://www.zotero.org/groups/new')">zotero.org/groups/new</a> · 
+        Get API key at <a href="#" onclick="openUrl('https://www.zotero.org/settings/keys')">zotero.org/settings/keys</a>
+      </p>
+    </div>
+
+    <div class="set-sec">
+      <div class="set-sec-t">☁️ Google Drive <span style="font-size:.6rem;color:var(--ink3);font-weight:400;text-transform:none;letter-spacing:0">— PDF storage + Excel table</span></div>
+      <div class="set-row">
+        <label class="set-label">API Key <span>— console.cloud.google.com → APIs → Drive API → Credentials → Create API Key</span></label>
+        <input class="set-input" id="set-drive-key" type="password" placeholder="AIza…"/>
+      </div>
+      <div class="set-row">
+        <label class="set-label">Folder ID <span>— create a shared folder, paste the ID from its URL: drive.google.com/drive/folders/<strong>1BxiMV…</strong></span></label>
+        <input class="set-input" id="set-drive-folder" type="text" placeholder="1BxiMVmTpClLsHnlXFGSBD3HbQBRBNjt…"/>
+      </div>
+      <div class="set-row" style="display:flex;gap:.5rem;align-items:center">
+        <button class="sbtn" onclick="testDrive()" style="font-size:.7rem">Test connection</button>
+        <div id="set-drive-status" style="font-size:.7rem;color:var(--ink3)"></div>
+      </div>
+      <p class="set-hint">
+        The folder must be set to <em>"Anyone with the link can edit"</em>. 
+        PDFs are uploaded automatically when you save a paper. An Excel table <code>papers.xlsx</code> is kept in sync.
+      </p>
+    </div>
+
+    <div class="set-sec">
+      <div class="set-sec-t">💾 Storage mode</div>
+      <div class="set-row">
+        <label class="set-label">When saving a paper, use</label>
+        <select class="set-select" id="set-storage-mode">
+          <option value="local">Local only (default)</option>
+          <option value="zotero">Zotero only</option>
+          <option value="drive">Google Drive only</option>
+          <option value="both">Zotero + Google Drive (recommended for teams)</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="save-btn" onclick="saveSettings()">Save settings</button>
+
+    <div style="margin-top:2rem;font-size:.57rem;text-transform:uppercase;letter-spacing:.11em;color:var(--ink3);margin-bottom:.65rem;padding-left:.1rem">Local API Server</div>
+
+    <div class="set-sec">
+      <div class="set-sec-t">🔌 Local API Server <span style="font-size:.6rem;color:var(--ink3);font-weight:400;text-transform:none;letter-spacing:0">— let scripts &amp; agents connect to this app</span></div>
+
+      <!-- Server status + toggle -->
+      <div class="set-row" style="flex-direction:row;align-items:center;gap:.6rem;flex-wrap:wrap">
+        <span class="api-dot" id="api-dot"></span>
+        <span id="api-status-text" style="font-size:.68rem;color:var(--ink3)">Server stopped</span>
+        <div style="display:flex;align-items:center;gap:.4rem;margin-left:auto;flex-wrap:wrap">
+          <label class="set-label" style="margin:0;white-space:nowrap">Port</label>
+          <input class="set-input" id="api-port" type="number" value="7842" min="1024" max="65535" style="width:88px"/>
+          <button class="sbtn" id="api-toggle-btn" onclick="toggleApiServer()" style="font-size:.7rem;height:38px;padding:0 .95rem">Start</button>
+        </div>
+      </div>
+      <p class="set-hint" style="margin-top:.2rem">Binds to 127.0.0.1 only — only programs on <em>this</em> computer can connect. Keys use 256-bit random entropy.</p>
+
+      <!-- Keys table -->
+      <div style="margin-top:1.1rem">
+        <div style="font-size:.63rem;font-weight:500;color:var(--ink2);margin-bottom:.5rem;letter-spacing:.02em">API Keys</div>
+        <div id="api-keys-container">
+          <div style="font-size:.64rem;color:var(--ink3)">No keys yet.</div>
+        </div>
+      </div>
+
+      <!-- Create key -->
+      <div style="margin-top:.85rem;display:flex;gap:.4rem;align-items:center;flex-wrap:wrap">
+        <input class="set-input" id="api-new-key-name" type="text" placeholder="Key name, e.g. My Agent" style="max-width:260px"/>
+        <button class="sbtn" onclick="createApiKey()" style="font-size:.7rem;height:38px;padding:0 1rem">+ Create key</button>
+      </div>
+
+      <!-- One-time key flash box -->
+      <div class="key-flash" id="key-flash"></div>
+
+      <!-- Usage examples accordion -->
+      <button class="api-docs-toggle" onclick="toggleApiDocs()">▸ Show usage examples (curl)</button>
+      <div class="api-docs-body" id="api-docs-body">
+        <p class="set-hint" style="margin-bottom:.5rem">Replace <code>axk_…</code> with your key. Adjust the port if you changed it.</p>
+        <pre class="api-code">curl http://localhost:7842/v1/status</pre>
+        <pre class="api-code">curl -H "Authorization: Bearer axk_…" \
+     "http://localhost:7842/v1/search?q=superconductivity&max=5"</pre>
+        <pre class="api-code">curl -H "Authorization: Bearer axk_…" \
+     http://localhost:7842/v1/library</pre>
+        <pre class="api-code">curl -X POST \
+     -H "Authorization: Bearer axk_…" \
+     -H "Content-Type: application/json" \
+     -d '{"arxivId":"2301.12345","title":"My Paper","authors":["A. Smith"]}' \
+     http://localhost:7842/v1/library</pre>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODALS -->
+<!-- modal-coll removed -->
+<div style="display:none">
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="modal-addcoll" style="display:none" onclick="if(event.target===this)closeModal('modal-addcoll')">
+  <div class="modal">
+    <div class="modal-t">Add to collection</div>
+    <div class="cpick" id="cpick"></div>
+    <div class="macts"><button class="mbtn pri" onclick="closeModal('modal-addcoll')">Done</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="modal-bib" onclick="if(event.target===this)closeModal('modal-bib')">
+  <div class="modal wide">
+    <div class="modal-t">BibTeX Export</div>
+    <p style="font-size:.65rem;color:var(--ink2);margin-bottom:.8rem;line-height:1.65">
+      Journal papers → <code>@article</code> &nbsp;·&nbsp; Preprints → <code>@misc</code> &nbsp;·&nbsp; Notes → <code>note</code> field
+    </p>
+    <pre class="bib-pre" id="bib-pre"></pre>
+    <div class="macts">
+      <button class="mbtn" onclick="closeModal('modal-bib')">Close</button>
+      <button class="mbtn pri" onclick="copyBib()">Copy</button>
+      <button class="mbtn grn" onclick="dlBib()">⬇ Download .bib</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══ TAXONOMY ════════════════════════════════════════════════
+const CATS=[
+  {id:"cond-mat",g:"Condensed Matter",n:"All Condensed Matter"},
+  {id:"cond-mat.dis-nn",g:"Condensed Matter",n:"Disordered Systems & Neural Nets"},
+  {id:"cond-mat.mes-hall",g:"Condensed Matter",n:"Mesoscale & Nanoscale Physics"},
+  {id:"cond-mat.mtrl-sci",g:"Condensed Matter",n:"Materials Science"},
+  {id:"cond-mat.quant-gas",g:"Condensed Matter",n:"Quantum Gases"},
+  {id:"cond-mat.soft",g:"Condensed Matter",n:"Soft Condensed Matter"},
+  {id:"cond-mat.stat-mech",g:"Condensed Matter",n:"Statistical Mechanics"},
+  {id:"cond-mat.str-el",g:"Condensed Matter",n:"Strongly Correlated Electrons"},
+  {id:"cond-mat.supr-con",g:"Condensed Matter",n:"Superconductivity"},
+  {id:"cs.AI",g:"Computer Science",n:"Artificial Intelligence"},
+  {id:"cs.CL",g:"Computer Science",n:"Computation and Language"},
+  {id:"cs.CR",g:"Computer Science",n:"Cryptography and Security"},
+  {id:"cs.CV",g:"Computer Science",n:"Computer Vision"},
+  {id:"cs.DS",g:"Computer Science",n:"Data Structures & Algorithms"},
+  {id:"cs.GT",g:"Computer Science",n:"Game Theory"},
+  {id:"cs.LG",g:"Computer Science",n:"Machine Learning"},
+  {id:"cs.NE",g:"Computer Science",n:"Neural & Evolutionary Computing"},
+  {id:"cs.RO",g:"Computer Science",n:"Robotics"},
+  {id:"cs.SY",g:"Computer Science",n:"Systems and Control"},
+  {id:"math.AG",g:"Mathematics",n:"Algebraic Geometry"},
+  {id:"math.AP",g:"Mathematics",n:"Analysis of PDEs"},
+  {id:"math.CO",g:"Mathematics",n:"Combinatorics"},
+  {id:"math.DG",g:"Mathematics",n:"Differential Geometry"},
+  {id:"math.DS",g:"Mathematics",n:"Dynamical Systems"},
+  {id:"math.NT",g:"Mathematics",n:"Number Theory"},
+  {id:"math.OC",g:"Mathematics",n:"Optimization and Control"},
+  {id:"math.PR",g:"Mathematics",n:"Probability"},
+  {id:"gr-qc",g:"Physics",n:"General Relativity & Quantum Cosmology"},
+  {id:"hep-ex",g:"Physics",n:"High Energy Physics – Experiment"},
+  {id:"hep-ph",g:"Physics",n:"High Energy Physics – Phenomenology"},
+  {id:"hep-th",g:"Physics",n:"High Energy Physics – Theory"},
+  {id:"math-ph",g:"Physics",n:"Mathematical Physics"},
+  {id:"nucl-th",g:"Physics",n:"Nuclear Theory"},
+  {id:"quant-ph",g:"Physics",n:"Quantum Physics"},
+  {id:"physics.app-ph",g:"Physics",n:"Applied Physics"},
+  {id:"physics.atom-ph",g:"Physics",n:"Atomic Physics"},
+  {id:"physics.bio-ph",g:"Physics",n:"Biological Physics"},
+  {id:"physics.chem-ph",g:"Physics",n:"Chemical Physics"},
+  {id:"physics.comp-ph",g:"Physics",n:"Computational Physics"},
+  {id:"physics.flu-dyn",g:"Physics",n:"Fluid Dynamics"},
+  {id:"physics.optics",g:"Physics",n:"Optics"},
+  {id:"astro-ph",g:"Astrophysics",n:"Astrophysics (all)"},
+  {id:"astro-ph.CO",g:"Astrophysics",n:"Cosmology & Nongalactic Astrophysics"},
+  {id:"astro-ph.EP",g:"Astrophysics",n:"Earth & Planetary Astrophysics"},
+  {id:"astro-ph.GA",g:"Astrophysics",n:"Astrophysics of Galaxies"},
+  {id:"astro-ph.HE",g:"Astrophysics",n:"High Energy Astrophysical Phenomena"},
+  {id:"astro-ph.SR",g:"Astrophysics",n:"Solar & Stellar Astrophysics"},
+  {id:"stat.ML",g:"Statistics",n:"Machine Learning"},
+  {id:"stat.ME",g:"Statistics",n:"Methodology"},
+  {id:"econ.EM",g:"Economics",n:"Econometrics"},
+  {id:"econ.TH",g:"Economics",n:"Theoretical Economics"},
+  {id:"eess.SP",g:"Elec. Engineering",n:"Signal Processing"},
+  {id:"eess.IV",g:"Elec. Engineering",n:"Image & Video Processing"},
+  {id:"q-bio.NC",g:"Quantitative Biology",n:"Neurons and Cognition"},
+  {id:"q-bio.PE",g:"Quantitative Biology",n:"Populations & Evolution"},
+  {id:"nlin.CD",g:"Nonlinear Sciences",n:"Chaotic Dynamics"},
+  {id:"nlin.PS",g:"Nonlinear Sciences",n:"Pattern Formation & Solitons"},
+];
+
+// ═══ STATE ══════════════════════════════════════════════════
+let library=[], activeColl=null, chatHistory=[];
+let settings={provider:'openai',apiKey:'',model:'',username:'',ghToken:'',ghRepo:'',ghBranch:'main',zoteroKey:'',zoteroGroup:'',driveKey:'',driveFolder:'',storageMode:'local'};
+let ghSha=null;
+
+function loadState(){
+  try{library=JSON.parse(localStorage.getItem('ax_lib')||'[]')}catch(_){library=[]}
+  try{settings=Object.assign(settings,JSON.parse(localStorage.getItem('ax_cfg')||'{}'))}catch(_){}
+}
+function saveLib(){localStorage.setItem('ax_lib',JSON.stringify(library));updateBadge();syncLibraryToMain()}
+function saveCfg(){localStorage.setItem('ax_cfg',JSON.stringify(settings))}
+loadState();
+
+// ═══ ACTIONS LAYER ══════════════════════════════════════════
+// Pure business logic — no DOM, no toast(), no CSS mutations.
+// Return { ok: true, … } or { ok: false, error: string }.
+// Shared by UI handlers and external LangChain / LangGraph tools.
+
+async function actionArxivSearch(query, category, maxResults = 10) {
+  try {
+    const q = query && category ? `(ti:${query} OR abs:${query}) AND cat:${category}`
+            : category          ? `cat:${category}`
+            : query             ? `all:${query}`
+            : '*';
+    const params = new URLSearchParams({
+      search_query: q, start: 0,
+      max_results: Math.min(Number(maxResults) || 10, 50),
+      sortBy: 'relevance', sortOrder: 'descending',
+    });
+    const xml = await fetchArxiv(`https://export.arxiv.org/api/query?${params}`);
+    return { ok: true, papers: parseXML(xml) };
+  } catch(e) { return { ok: false, error: e.message }; }
+}
+
+async function actionSavePaper(paper) {
+  try {
+    const arxivId = String(
+      paper.arxivId ||
+      (paper.id||'').replace(/https?:\/\/arxiv\.org\/abs\//,'').replace(/v\d+$/,'') || ''
+    ).trim();
+    if (!arxivId) return { ok: false, error: 'arxivId is required' };
+    const p = { ...paper, arxivId };
+    const existingIdx = library.findIndex(x => x.arxivId === arxivId);
+    let entry;
+    if (existingIdx >= 0) {
+      entry = library[existingIdx];
+    } else {
+      entry = { ...p, arxivId, note: '', savedAt: new Date().toISOString(),
+                savedBy: settings.username || '', zoteroKey: null, driveUrl: null };
+      library.push(entry);
+    }
+    saveLib();
+    return { ok: true, entry };
+  } catch(e) { return { ok: false, error: e.message }; }
+}
+
+function actionRemovePaper(arxivId) {
+  try {
+    const idx = library.findIndex(x => x.arxivId === arxivId);
+    if (idx < 0) return { ok: false, error: 'Paper not in library' };
+    library.splice(idx, 1);
+    saveLib();
+    return { ok: true };
+  } catch(e) { return { ok: false, error: e.message }; }
+}
+
+async function actionZoteroSave(paper) {
+  try {
+    const zoteroKey = await saveToZotero(paper);
+    return { ok: true, zoteroKey };
+  } catch(e) { return { ok: false, error: e.message }; }
+}
+
+async function actionZoteroSync() {
+  try {
+    const remote = await fetchZoteroLibrary();
+    if (!remote.length) return { ok: true, added: 0, updated: 0 };
+    let added = 0, updated = 0;
+    remote.forEach(p => {
+      if (!p.arxivId) return;
+      const existing = library.find(x => x.arxivId === p.arxivId);
+      if (!existing) {
+        library.push({ ...p, note: p.note || '', savedAt: p.savedAt || new Date().toISOString() });
+        added++;
+      } else {
+        if (!existing.zoteroKey && p.zoteroKey) { existing.zoteroKey = p.zoteroKey; updated++; }
+        if (!existing.driveUrl  && p.driveUrl)  { existing.driveUrl  = p.driveUrl;  updated++; }
+      }
+    });
+    saveLib();
+    return { ok: true, added, updated };
+  } catch(e) { return { ok: false, error: e.message }; }
+}
+
+function actionUpdateNote(arxivId, note) {
+  try {
+    const entry = library.find(x => x.arxivId === arxivId);
+    if (!entry) return { ok: false, error: 'Paper not in library' };
+    entry.note = String(note || '').slice(0, 5000);
+    saveLib();
+    return { ok: true };
+  } catch(e) { return { ok: false, error: e.message }; }
+}
+
+// ═══ HELPERS ════════════════════════════════════════════════
+const isoToday=()=>new Date().toISOString().slice(0,10);
+const isoAgo=n=>{const d=new Date();d.setDate(d.getDate()-n);return d.toISOString().slice(0,10)};
+const toTS=(s,e)=>s.replace(/-/g,'')+(e?'235959':'000000');
+const fmtLong=iso=>iso?new Date(iso).toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'long',year:'numeric'}):'';
+const fmtShort=iso=>iso?new Date(iso).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):'';
+const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+function openUrl(u){if(window.electronAPI?.openURL)window.electronAPI.openURL(u);else window.open(u,'_blank')}
+
+let toastT;
+function toast(m,dur=2600){const el=document.getElementById('toast');el.textContent=m;el.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),dur)}
+function openModal(id){document.getElementById(id).classList.add('open')}
+function closeModal(id){document.getElementById(id).classList.remove('open')}
+function updateBadge(){document.getElementById('lib-badge').textContent=library.length}
+updateBadge();
+
+// ═══ TABS ════════════════════════════════════════════════════
+const TABS=['search','library','ai','settings'];
+function setTab(t){
+  TABS.forEach(id=>{
+    document.getElementById('tab-'+id).style.display=id===t?'':'none';
+    document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('on',TABS[i]===t));
+  });
+  if(t==='library')renderLib();
+  if(t==='ai')renderAiStatus();
+  if(t==='settings'){loadSettingsUI();loadApiSection();}
+}
+
+// ═══ CATEGORY COMBOBOX ══════════════════════════════════════
+let selCat='cond-mat', dropHi=-1, dropFlat=[];
+const ci=document.getElementById('cat-input');
+const cd=document.getElementById('cat-drop');
+
+function setCatDisplay(id){const c=CATS.find(x=>x.id===id);ci.value=c?`${id} \u2014 ${c.n}`:id;selCat=id}
+setCatDisplay('cond-mat');
+
+function buildDrop(list){
+  cd.innerHTML='';dropFlat=list;dropHi=-1;
+  if(!list.length){cd.classList.remove('open');return}
+  const gs={};list.forEach(c=>{(gs[c.g]||(gs[c.g]=[])).push(c)});
+  let fi=0;
+  for(const[g,cs]of Object.entries(gs)){
+    const gl=document.createElement('div');gl.className='cg';gl.textContent=g;cd.appendChild(gl);
+    cs.forEach(c=>{
+      const el=document.createElement('div');el.className='ci-item';el.dataset.fi=fi++;
+      el.innerHTML=`<span class="ci-id">${esc(c.id)}</span><span class="ci-name">${esc(c.n)}</span>`;
+      el.addEventListener('mousedown',e=>{e.preventDefault();pickCat(c.id)});
+      el.addEventListener('mouseenter',()=>{dropHi=+el.dataset.fi;hiDrop()});
+      cd.appendChild(el);
+    });
+  }
+  cd.classList.add('open');
+}
+function hiDrop(){cd.querySelectorAll('.ci-item').forEach((el,i)=>el.classList.toggle('hi',i===dropHi));cd.querySelectorAll('.ci-item')[dropHi]?.scrollIntoView({block:'nearest'})}
+function pickCat(id){setCatDisplay(id);cd.classList.remove('open');ci.blur()}
+ci.addEventListener('focus',()=>{ci.value='';ci.removeAttribute('readonly');buildDrop(CATS.slice(0,45))});
+ci.addEventListener('input',()=>{const q=ci.value.trim().toLowerCase();buildDrop(q?CATS.filter(c=>c.id.toLowerCase().includes(q)||c.n.toLowerCase().includes(q)||c.g.toLowerCase().includes(q)).slice(0,35):CATS.slice(0,45))});
+ci.addEventListener('keydown',e=>{
+  const all=cd.querySelectorAll('.ci-item');
+  if(e.key==='ArrowDown'){e.preventDefault();dropHi=Math.min(dropHi+1,all.length-1);hiDrop()}
+  else if(e.key==='ArrowUp'){e.preventDefault();dropHi=Math.max(dropHi-1,0);hiDrop()}
+  else if(e.key==='Enter'){e.preventDefault();if(dropHi>=0&&dropFlat[dropHi])pickCat(dropFlat[dropHi].id);cd.classList.remove('open')}
+  else if(e.key==='Escape'){cd.classList.remove('open');ci.setAttribute('readonly','');setCatDisplay(selCat)}
+});
+ci.addEventListener('blur',()=>setTimeout(()=>{cd.classList.remove('open');ci.setAttribute('readonly','');setCatDisplay(selCat)},200));
+
+// ═══ DATE PRESETS ════════════════════════════════════════════
+document.getElementById('df').value=isoAgo(30);
+document.getElementById('dt').value=isoToday();
+document.querySelectorAll('.ps').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.ps').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+  const d=+b.dataset.d;
+  document.getElementById('df').value=d?isoAgo(d):'';
+  document.getElementById('dt').value=d?isoToday():'';
+}));
+const kwi=document.getElementById('kw-input'),kwx=document.getElementById('kwx');
+kwi.addEventListener('input',()=>kwx.style.display=kwi.value?'block':'none');
+kwx.addEventListener('click',()=>{kwi.value='';kwx.style.display='none';kwi.focus()});
+kwi.addEventListener('keydown',e=>{if(e.key==='Enter')doSearch()});
+
+// ═══ SEARCH ═════════════════════════════════════════════════
+const PROXIES=[
+  u=>`https://corsproxy.io/?${encodeURIComponent(u)}`,
+  u=>`https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
+];
+async function fetchArxiv(url){
+  // In Electron: use main process (no CORS)
+  if(window.electronAPI && window.electronAPI.fetchURL){
+    try{
+      const res=await window.electronAPI.fetchURL(url);
+      if(res.ok && res.text.includes('<feed'))return res.text;
+    }catch(_){}
+  }
+  // Fallback: CORS proxies (browser mode)
+  for(const proxy of PROXIES){
+    try{
+      const r=await fetch(proxy(url),{signal:AbortSignal.timeout(16000)});
+      if(!r.ok)continue;
+      const buf=await r.arrayBuffer();
+      if(buf.byteLength>5*1024*1024){continue;} // skip suspiciously large responses (>5MB)
+      let t=new TextDecoder().decode(buf);
+      try{const j=JSON.parse(t);if(j.contents)t=j.contents}catch(_){}
+      if(t.includes('<feed'))return t;
+    }catch(_){}
+  }
+  throw new Error('Could not reach arXiv. Check your internet connection and try again.');
+}
+function parseXML(xml){
+  const doc=new DOMParser().parseFromString(xml,'application/xml');
+  if(doc.querySelector('parsererror'))throw new Error('XML parse error');
+  return Array.from(doc.querySelectorAll('entry')).map(e=>{
+    const id=e.querySelector('id')?.textContent?.trim()||'';
+    const arxivId=id.replace(/https?:\/\/arxiv\.org\/abs\//,'');
+    const title=e.querySelector('title')?.textContent?.trim().replace(/\s+/g,' ')||'';
+    const summary=e.querySelector('summary')?.textContent?.trim().replace(/\s+/g,' ')||'';
+    const published=e.querySelector('published')?.textContent?.trim()||'';
+    const updated=e.querySelector('updated')?.textContent?.trim()||'';
+    const authors=Array.from(e.querySelectorAll('author name')).map(n=>n.textContent.trim());
+    const cats=Array.from(e.querySelectorAll('category')).map(c=>c.getAttribute('term')||'');
+    const doi=e.getElementsByTagNameNS('http://arxiv.org/schemas/atom','doi')[0]?.textContent?.trim()||'';
+    const jref=e.getElementsByTagNameNS('http://arxiv.org/schemas/atom','journal_ref')[0]?.textContent?.trim()||'';
+    const pdfLink=Array.from(e.querySelectorAll('link')).find(l=>l.getAttribute('title')==='pdf')?.getAttribute('href')||`https://arxiv.org/pdf/${arxivId}`;
+    return{id,arxivId,title,summary,published,updated,authors,cats,doi,jref,pdfLink};
+  });
+}
+// Current search state — used by loadMore()
+let _searchState = null;
+
+async function doSearch(){
+  const kw=kwi.value.trim(),from=document.getElementById('df').value,to=document.getElementById('dt').value;
+  const sortBy=document.getElementById('sort-by').value;
+  const pageSize=parseInt(document.getElementById('max-res').value)||50;
+  const field=document.getElementById('search-field').value;
+  const sbtn=document.getElementById('sbtn');sbtn.disabled=true;sbtn.textContent='Searching…';
+  document.getElementById('pbar').style.display='';
+  document.getElementById('feed').innerHTML='';
+  document.getElementById('rbar').textContent='Fetching…';
+  document.getElementById('load-more-bar').style.display='none';
+  let dc='';
+  if(from||to){const f=from?toTS(from,false):'000000000000';const t=to?toTS(to,true):'999999999999';dc=` AND submittedDate:[${f} TO ${t}]`}
+  let kwClause='';
+  if(kw){
+    // Quote multi-word terms so arXiv doesn't split them across fields.
+    // Single words and author names don't need quotes.
+    const needsQuotes = kw.includes(' ') && field !== 'au';
+    const kwQ = needsQuotes ? `"${kw}"` : kw;
+    if(field==='all')      { kwClause=`all:${kwQ}`; }
+    else if(field==='ti+abs'){ kwClause=`(ti:${kwQ} OR abs:${kwQ})`; }
+    else                   { kwClause=`${field}:${kwQ}`; }
+  }
+  // If no keyword, search only by category. If keyword only (no category selected), drop cat filter.
+  let q;
+  // Expand top-level categories (e.g. 'cond-mat') to OR of all subcategories
+  // because arXiv papers are submitted to subcats, not the top-level group
+  function expandCat(cat){
+    const subCats = CATS.filter(x => x.id !== cat && x.id.startsWith(cat+'.'));
+    if(!subCats.length) return `cat:${cat}`; // already a subcat or has no children
+    return '(' + subCats.map(x=>`cat:${x.id}`).join(' OR ') + ')';
+  }
+  const catClause = selCat ? expandCat(selCat) : '';
+  if(kwClause && catClause){ q=`${kwClause} AND ${catClause}${dc}`; }
+  else if(kwClause)         { q=`${kwClause}${dc}`; }
+  else if(catClause)        { q=`${catClause}${dc}`; }
+  else                      { q=`*${dc}`; }
+  _searchState={ q, sortBy, pageSize, loaded:0, total:null, field, kw };
+  try{
+    const papers=await _fetchPage(0);
+    const feed=document.getElementById('feed');
+    if(!papers.length){
+      feed.innerHTML='<div class="blank"><div class="blank-i">◌</div><div class="blank-t">No results</div><div class="blank-s">Try a broader date range or different keywords.</div></div>';
+      document.getElementById('rbar').textContent='No papers found';
+      document.getElementById('load-more-bar').style.display='none';
+    }else{
+      papers.forEach((p,i)=>{feed.appendChild(makeCard(p,i))});
+      _searchState.loaded=papers.length;
+      _updateSearchBar();
+      _updateLoadMoreBar();
+    }
+  }catch(err){
+    document.getElementById('feed').innerHTML=`<div class="blank"><div class="blank-i">⚠</div><div class="blank-t err-t">Search failed</div><div class="blank-s">${esc(err.message)}</div></div>`;
+    document.getElementById('rbar').textContent='Error';
+  }finally{
+    sbtn.disabled=false;sbtn.textContent='Search';
+    document.getElementById('pbar').style.display='none';
+  }
+}
+
+async function _fetchPage(start){
+  if(!_searchState) return [];
+  const {q,sortBy,pageSize}=_searchState;
+  const params=new URLSearchParams({search_query:q,start,max_results:pageSize,sortBy,sortOrder:'descending'});
+  const xml=await fetchArxiv(`https://export.arxiv.org/api/query?${params}`);
+  const doc=new DOMParser().parseFromString(xml,'application/xml');
+  const totalEl=doc.querySelector('opensearch\\:totalResults,totalResults')||
+                doc.getElementsByTagNameNS('http://a9.com/-/spec/opensearch/1.1/','totalResults')[0];
+  if(totalEl) _searchState.total=parseInt(totalEl.textContent)||null;
+  return parseXML(xml);
+}
+
+function _updateSearchBar(){
+  if(!_searchState) return;
+  const {loaded,total,kw,field}=_searchState;
+  const totalStr=total!=null?' of <strong>'+total.toLocaleString()+'</strong>':'';
+  document.getElementById('rbar').innerHTML=
+    'Showing <strong>'+loaded+'</strong>'+totalStr+' papers · '+selCat+
+    (kw?' · “'+kw+'” ['+field+']':'');
+}
+
+function _updateLoadMoreBar(){
+  if(!_searchState) return;
+  const {loaded,total,pageSize}=_searchState;
+  const bar=document.getElementById('load-more-bar');
+  const cap=2000; // arXiv hard cap per query
+  const hasMore=total!=null ? loaded<Math.min(total,cap) : loaded%pageSize===0;
+  if(hasMore){
+    const remaining=total!=null?Math.min(total,cap)-loaded:null;
+    const nextBatch=remaining!=null?Math.min(pageSize,remaining):pageSize;
+    const allRemaining=remaining!=null?remaining:null;
+    bar.style.display='';
+    bar.innerHTML=
+      '<button onclick="loadMore()" id="load-more-btn" '+
+        'style="font-size:.7rem;padding:.32rem .9rem;background:var(--sur);border:1px solid var(--bdr2);color:var(--ink);cursor:pointer;margin-right:.5rem">'+
+        'Load '+nextBatch+' more</button>'+
+      (allRemaining!=null && allRemaining>nextBatch
+        ? '<button onclick="loadAll()" '+
+            'style="font-size:.7rem;padding:.32rem .9rem;background:var(--sur);border:1px solid var(--bdr2);color:var(--ink3);cursor:pointer;margin-right:.5rem">'+
+            'Load all ('+allRemaining+' remaining)</button>'
+        : '')+
+      (total!=null?' <span style="font-size:.6rem;color:var(--ink3)">'+loaded.toLocaleString()+' / '+Math.min(total,cap).toLocaleString()+' shown'+(total>cap?' · arXiv caps at 2,000 per query':'')+' </span>':'');
+  }else{
+    bar.style.display=loaded>0?'':'none';
+    if(loaded>0) bar.innerHTML='<span style="font-size:.6rem;color:var(--ink3)">All '+loaded.toLocaleString()+' results loaded'+((_searchState.total||0)>2000?' · arXiv caps at 2,000 per query; use narrower filters to see more':'')+' </span>';
+  }
+}
+
+// Load everything remaining up to the arXiv cap (2000)
+async function loadAll(){
+  if(!_searchState) return;
+  const cap=2000;
+  const bar=document.getElementById('load-more-bar');
+  bar.innerHTML='<span style="font-size:.7rem;color:var(--ink3)">Loading all results…</span>';
+  const feed=document.getElementById('feed');
+  let batchNum=0;
+  while(_searchState.loaded < Math.min(_searchState.total||cap, cap)){
+    const btn=document.getElementById('load-more-btn');
+    try{
+      const papers=await _fetchPage(_searchState.loaded);
+      if(!papers.length) break;
+      const offset=_searchState.loaded;
+      papers.forEach((p,i)=>{ feed.appendChild(makeCard(p,offset+i)); });
+      _searchState.loaded+=papers.length;
+      _updateSearchBar();
+      batchNum++;
+      // Small delay to avoid hammering arXiv
+      if(_searchState.loaded < Math.min(_searchState.total||cap, cap)){
+        bar.innerHTML='<span style="font-size:.7rem;color:var(--ink3)">Loading… '+_searchState.loaded+' / '+Math.min(_searchState.total,cap)+' </span>';
+        await new Promise(r=>setTimeout(r,300));
+      }
+    }catch(err){
+      bar.innerHTML='<span style="font-size:.7rem;color:#c00">Load failed: '+esc(err.message)+'</span>';
+      return;
+    }
+  }
+  _updateLoadMoreBar();
+}
+
+async function loadMore(){
+  if(!_searchState) return;
+  const btn=document.getElementById('load-more-btn');
+  if(btn){btn.disabled=true;btn.textContent='Loading…';}
+  try{
+    const papers=await _fetchPage(_searchState.loaded);
+    const feed=document.getElementById('feed');
+    const offset=_searchState.loaded;
+    papers.forEach((p,i)=>{feed.appendChild(makeCard(p,offset+i))});
+    _searchState.loaded+=papers.length;
+    _updateSearchBar();
+    _updateLoadMoreBar();
+  }catch(err){
+    const bar=document.getElementById('load-more-bar');
+    bar.innerHTML='<span style="font-size:.7rem;color:#c00">Failed to load more: '+esc(err.message)+'</span>';
+  }
+}
+
+
+function makeCard(p,i){
+  const el=document.createElement('div');el.className='card';el.style.animationDelay=`${Math.min(i*35,600)}ms`;
+  const saved=library.some(x=>x.arxivId===p.arxivId);
+  const sameDay=p.updated&&p.updated.slice(0,10)===p.published.slice(0,10);
+  el.innerHTML=`
+  <div class="card-body">
+    <div class="dl">
+      <span style="color:var(--ink3);font-size:.59rem">Submitted</span>
+      <span class="sub">${fmtLong(p.published)}</span>
+      ${!sameDay&&p.updated?`<span class="upd">updated ${fmtShort(p.updated)}</span>`:''}
+    </div>
+    <div class="tags">
+      ${p.cats[0]?`<span class="tag tcat">${esc(p.cats[0])}</span>`:''}
+      ${p.cats.slice(1,3).map(c=>`<span class="tag tsec">${esc(c)}</span>`).join('')}
+      ${p.doi?`<a class="tag tdoi" href="https://doi.org/${esc(p.doi)}" target="_blank">DOI \u2197</a>`:''}
+    </div>
+    <div class="title">${esc(p.title)}</div>
+    <div class="authors">${esc(p.authors.slice(0,5).join(', '))}${p.authors.length>5?` <span style="opacity:.6">+${p.authors.length-5}</span>`:''}</div>
+    ${p.jref?`<div class="jref">${esc(p.jref)}</div>`:''}
+  </div>
+  <div class="abs"><div class="abs-in">${esc(p.summary)}</div></div>
+  <div class="cfoot">
+    <button class="abtn">\u25b8 Abstract</button>
+    <div class="links">
+      <a class="lb la" href="${esc(p.id)}" target="_blank">arXiv \u2197</a>
+      <a class="lb lv" href="${esc(p.pdfLink)}" target="_blank">View PDF</a>
+      <button class="lb ld">\u2b07 Save PDF</button>
+      ${p.driveUrl?`<a class="lb" href="${esc(p.driveUrl)}" target="_blank" style="border-color:rgba(15,157,88,.4);color:#0f9d58">\u2601 Drive PDF</a>`:''}
+      ${p.zoteroKey?`<a class="lb" href="https://www.zotero.org/groups/${settings.zoteroGroup||''}/items/${esc(p.zoteroKey)}" target="_blank" style="border-color:rgba(204,0,0,.3);color:#c00">Z Zotero</a>`:''}
+      <button class="lb ls${saved?' saved':''}">${saved?'\u2713 In Library':'+ Library'}</button>
+    </div>
+  </div>`;
+  const abs=el.querySelector('.abs'),abtn=el.querySelector('.abtn');
+  const flip=()=>{const o=abs.classList.toggle('open');abtn.textContent=o?'\u25be Abstract':'\u25b8 Abstract'};
+  abtn.addEventListener('click',e=>{e.stopPropagation();flip()});
+  el.querySelector('.card-body').addEventListener('click',flip);
+  el.querySelector('.lb.ld').addEventListener('click',e=>{e.stopPropagation();nativeSavePDF(p.pdfLink,p.arxivId)});
+  const savebtn=el.querySelector('.lb.ls');
+  savebtn.addEventListener('click',async e=>{
+    e.stopPropagation();
+    const idx=library.findIndex(x=>x.arxivId===p.arxivId);
+    if(idx>=0){
+      // Remove from library
+      const removed = library[idx];
+      library.splice(idx,1);
+      saveLib();
+      savebtn.className='lb ls'; savebtn.textContent='+ Library';
+      toast('Removed from library');
+      // Remove from Zotero if key stored
+      if(removed.zoteroKey && settings.zoteroGroup && settings.zoteroKey){
+        removeFromZotero(removed.zoteroKey).catch(()=>{});
+      }
+    } else {
+      // Save with integrations (Zotero + Drive + local)
+      await saveWithIntegrations(p, savebtn);
+    }
+  });
+  return el;
+}
+
+// ═══ NATIVE PDF SAVE (Electron) ══════════════════════════════
+async function nativeSavePDF(url, arxivId){
+  const filename=`${(arxivId||'paper').replace(/[/\\:*?"<>|\x00]/g,'_').slice(0,100)}.pdf`;
+  try{
+    toast('Downloading PDF\u2026',8000);
+    if(window.electronAPI){
+      const {ok,path,error}=await window.electronAPI.savePDF(url,filename);
+      if(ok)toast(`\u2713 Saved: ${path}`);
+      else if(error)toast(`PDF error: ${error}`);
+      else toast('Save cancelled');
+    }else{
+      const r=await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`);
+      if(!r.ok)throw new Error(`HTTP ${r.status}`);
+      const buf=await r.arrayBuffer();
+      const blob=new Blob([buf],{type:'application/pdf'});
+      const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;a.click();
+      toast('\u2713 PDF downloaded');
+    }
+  }catch(e){toast(`PDF error: ${e.message}`)}
+}
+
+// ═══ LIBRARY ════════════════════════════════════════════════
+function getLibItems(){
+  const q=document.getElementById('lib-search').value.toLowerCase().trim();
+  return library.filter(p=>{
+    if(!q)return true;
+    return p.title.toLowerCase().includes(q)||p.authors.join(' ').toLowerCase().includes(q)||(p.note||'').toLowerCase().includes(q);
+  });
+}
+function renderLib(){
+  renderCollBar();
+  const items=getLibItems(),feed=document.getElementById('lib-feed');
+  if(!items.length){
+    feed.innerHTML=`<div class="blank"><div class="blank-i">\u25cc</div><div class="blank-t">${library.length?'No matching papers':'Library is empty'}</div><div class="blank-s">${library.length?'Try a different search.':'Save papers from the Search tab using the \u201c+ Library\u201d button.'}</div></div>`;
+    return;
+  }
+  feed.innerHTML='';items.forEach(p=>feed.appendChild(makeLibCard(p)));
+}
+function renderCollBar(){
+  const bar=document.getElementById('collbar');bar.innerHTML='';
+}
+function makeLibCard(p){
+  const el=document.createElement('div');el.className='lc';
+  el.innerHTML=`
+  <div class="lc-body">
+    <div class="lc-meta">
+      <span>${fmtShort(p.published)}</span>
+      ${p.cats?.[0]?`<span class="lcat">${esc(String(p.cats[0]))}</span>`:''}
+      ${p.doi&&/^10\.\d{4,}/.test(p.doi)?`<a class="ldoi" href="https://doi.org/${esc(p.doi)}" target="_blank">DOI \u2197</a>`:''}
+      ${p.savedBy&&p.savedBy!==(settings.username||'shared')?`<span style="color:var(--pur);font-size:.57rem">\u{1f464} ${esc(p.savedBy)}</span>`:''}
+    </div>
+    <div class="lc-title">${esc(p.title)}</div>
+    <div class="lc-authors">${esc((p.authors||[]).slice(0,5).join(', '))}${p.authors?.length>5?` +${p.authors.length-5}`:''}</div>
+  </div>
+  <div class="labs"><div class="labs-in">${esc(p.summary)}</div></div>
+  <textarea class="note-area" placeholder="Add a note\u2026 (auto-saved after 1 second)">${esc(p.note||'')}</textarea>
+  <div class="lc-foot">
+    <button class="abtn lc-abs-btn">\u25b8 Abstract</button>
+    <div style="display:flex;gap:.3rem;flex-wrap:wrap">
+      <a class="lb la" href="${esc(p.id)}" target="_blank">arXiv \u2197</a>
+      <a class="lb lv" href="${esc(p.pdfLink)}" target="_blank">View PDF</a>
+      <button class="lb ld">\u2b07 Save PDF</button>
+      ${settings.apiKey?`<button class="lb lc-ai-btn" style="border-color:rgba(107,79,160,.4);color:var(--pur)">\u{1f916} Summarize</button>`:''}
+    </div>
+    <div style="display:flex;gap:.3rem;flex-wrap:wrap">
+      <button class="lb lc-rm-btn" style="border-color:rgba(184,76,30,.3);color:var(--acc)">\u00d7 Remove</button>
+    </div>
+  </div>`;
+  const abs=el.querySelector('.labs'),abtn=el.querySelector('.lc-abs-btn');
+  abtn.addEventListener('click',e=>{e.stopPropagation();const o=abs.classList.toggle('open');abtn.textContent=o?'\u25be Abstract':'\u25b8 Abstract'});
+  el.querySelector('.lc-body').addEventListener('click',()=>{const o=abs.classList.toggle('open');abtn.textContent=o?'\u25be Abstract':'\u25b8 Abstract'});
+  el.querySelector('.lb.ld').addEventListener('click',e=>{e.stopPropagation();nativeSavePDF(p.pdfLink,p.arxivId)});
+  const btns=[...el.querySelectorAll('.lc-foot .lb')].filter(b=>!b.classList.contains('ld')&&!b.tagName==='A');
+  // summarize, remove buttons
+  const footBtns=el.querySelectorAll('.lc-foot div button');
+  if(settings.apiKey){
+    el.querySelector('.lc-ai-btn')?.addEventListener('click',e=>{e.stopPropagation();aiSummarize(p)});
+  }
+  el.querySelector('.lc-rm-btn').addEventListener('click',async e=>{
+    e.stopPropagation();
+    if(!confirm('Remove from library?')) return;
+    const entry = library.find(x=>x.arxivId===p.arxivId);
+    const result = actionRemovePaper(p.arxivId);
+    if(!result.ok){ toast(`Remove failed: ${result.error}`); return; }
+    renderLib();
+    toast('Removed');
+    // Remove from Zotero if synced
+    if(entry?.zoteroKey && settings.zoteroKey && settings.zoteroGroup){
+      toast('Removing from Zotero…', 3000);
+      removeFromZotero(entry.zoteroKey)
+        .then(()=>toast('Removed from Zotero ✓'))
+        .catch(e=>toast('Zotero remove failed: '+e.message, 4000));
+    }
+  });
+  const ta=el.querySelector('.note-area');let nt;
+  ta.addEventListener('input',()=>{clearTimeout(nt);nt=setTimeout(()=>{actionUpdateNote(p.arxivId,ta.value)},1000)});
+  ta.addEventListener('click',e=>e.stopPropagation());
+  return el;
+}
+
+// ═══ JSON EXPORT / IMPORT ═══════════════════════════════════
+function exportJSON(){
+  if(!library.length){toast('Library is empty');return}
+  const data=JSON.stringify({library,exportedAt:new Date().toISOString(),version:2},null,2);
+  const blob=new Blob([data],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=`arxiv-library-${new Date().toISOString().slice(0,10)}.json`;a.click();toast('Exported \u2713');
+}
+function importJSON(){
+  const input=document.createElement('input');input.type='file';input.accept='.json';
+  input.onchange=async()=>{
+    try{
+      const raw=JSON.parse(await input.files[0].text());
+      if(typeof raw !== 'object' || raw === null) throw new Error('bad format');
+      let added=0;(raw.library||[]).forEach(p=>{
+        if(typeof p.arxivId !== 'string' || !p.arxivId) return; // skip malformed entries
+        if(!library.find(x=>x.arxivId===p.arxivId)){library.push(p);added++}
+      });
+      saveLib();renderLib();toast(`Imported ${added} papers \u2713`);
+    }catch(_){toast('Import failed \u2014 invalid file')}
+  };input.click();
+}
+
+// ═══ BIBTEX ══════════════════════════════════════════════════
+function bibKey(p){
+  const last=(p.authors?.[0]?.split(' ').pop()||'anon').toLowerCase().replace(/[^a-z]/g,'');
+  const year=p.published?new Date(p.published).getFullYear():'';
+  const word=(p.title.split(/\s+/).find(w=>w.length>4)||'paper').toLowerCase().replace(/[^a-z]/g,'');
+  return`${last}${year}${word}`;
+}
+function makeBib(p){
+  const key=bibKey(p),auths=(p.authors||[]).join(' and ');
+  const year=p.published?new Date(p.published).getFullYear():'';
+  const month=p.published?new Date(p.published).toLocaleDateString('en-US',{month:'long'}):'';
+  const note=p.note?p.note.split('\n')[0].slice(0,120):'';
+  const lines=[
+    `  title         = {${p.title}},`,
+    `  author        = {${auths}},`,
+    `  year          = {${year}},`,
+    month?`  month         = ${month},`:null,
+    p.doi?`  doi           = {${p.doi}},`:null,
+    note?`  note          = {${note}},`:null,
+  ].filter(Boolean).join('\n');
+  if(p.jref)return`@article{${key},\n${lines}\n  journal       = {${p.jref}},\n  eprint        = {${p.arxivId}},\n  archivePrefix = {arXiv},\n}`;
+  return`@misc{${key},\n${lines}\n  eprint        = {${p.arxivId}},\n  archivePrefix = {arXiv},\n  primaryClass  = {${(p.cats||[''])[0]}},\n  url           = {${p.id}},\n}`;
+}
+let bibContent='';
+function openBib(){
+  const items=getLibItems();if(!items.length){toast('No papers to export');return}
+  bibContent=`% arXiv Browser export \u2014 ${new Date().toISOString().slice(0,10)}\n% ${items.length} entries\n\n`+items.map(makeBib).join('\n\n');
+  document.getElementById('bib-pre').textContent=bibContent;openModal('modal-bib');
+}
+function copyBib(){navigator.clipboard?.writeText(bibContent).then(()=>toast('Copied \u2713')).catch(()=>toast('Copy failed'))}
+function dlBib(){
+  const blob=new Blob([bibContent],{type:'text/plain'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=`arxiv-${new Date().toISOString().slice(0,10)}.bib`;a.click();toast('Downloaded \u2713');
+}
+
+// ═══ GITHUB ══════════════════════════════════════════════════
+const ghH=()=>({'Authorization':`Bearer ${settings.ghToken}`,'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28','Content-Type':'application/json'});
+
+// Each user pushes to their own file: library-alice.json
+// Pull fetches ALL library-*.json files and merges them
+function ghFilename(){
+  const name=(settings.username||'shared').toLowerCase().replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
+  return`library-${name}.json`;
+}
+
+async function ghPull(){
+  if(!settings.ghToken||!settings.ghRepo){toast('Configure GitHub in Settings');return}
+  if(!/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/.test(settings.ghRepo)){toast('Invalid repo format — use owner/repo');return}
+  const branch=settings.ghBranch||'main';
+  try{
+    toast('Pulling from all colleagues\u2026',8000);
+    // List all files in repo root
+    const r=await fetch(`https://api.github.com/repos/${settings.ghRepo}/contents/?ref=${branch}`,{headers:ghH()});
+    if(!r.ok)throw new Error(`GitHub ${r.status}`);
+    const files=await r.json();
+    const libFiles=files.filter(f=>f.name.startsWith('library-')&&f.name.endsWith('.json'));
+    if(!libFiles.length){toast('No library files found \u2014 Push first');return}
+    let added=0;
+    for(const file of libFiles){
+      // Validate download_url is actually from GitHub (not a hijacked redirect)
+      if(!file.download_url||!file.download_url.startsWith('https://raw.githubusercontent.com/')){continue;}
+      const fr=await fetch(file.download_url);
+      if(!fr.ok)continue;
+      const data=await fr.json();
+      const who=file.name.replace('library-','').replace('.json','');
+      // Store SHA for our own file
+      if(file.name===ghFilename())ghSha=file.sha;
+      (data.library||[]).forEach(p=>{
+        if(!library.find(x=>x.arxivId===p.arxivId)){
+          library.push({...p,savedBy:p.savedBy||who});
+          added++;
+        }
+      });
+    }
+    saveLib();renderLib();
+    toast(`Pulled from ${libFiles.length} colleague(s) \u2014 ${added} new papers`);
+  }catch(e){toast(`GitHub: ${(e.message||'Unknown error').slice(0,120)}`)}
+}
+
+async function ghPush(){
+  if(!settings.ghToken||!settings.ghRepo){toast('Configure GitHub in Settings');return}
+  // Validate repo format (owner/repo) to prevent URL injection
+  if(!/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/.test(settings.ghRepo)){toast('Invalid repo format — use owner/repo');return}
+  const branch=settings.ghBranch||'main';
+  const filename=ghFilename();
+  try{
+    toast('Pushing your library\u2026',6000);
+    // Tag all local papers with our name
+    const myName=settings.username||'shared';
+    library.forEach(p=>{if(!p.savedBy)p.savedBy=myName});
+    // Get current SHA for our file
+    if(!ghSha){
+      const r=await fetch(`https://api.github.com/repos/${settings.ghRepo}/contents/${filename}?ref=${branch}`,{headers:ghH()});
+      if(r.ok){const d=await r.json();ghSha=d.sha}
+    }
+    // Strip any fields that should never leave this machine
+    const PRIV = ['note']; // notes are personal; remove if you want to share them, add fields here
+    const safeLib = library.map(p => {
+      const safe = { ...p };
+      // Never push API keys or tokens — belt-and-suspenders check
+      delete safe._apiKey; delete safe._token; delete safe._secret;
+      return safe;
+    });
+    const payload=btoa(unescape(encodeURIComponent(JSON.stringify({library:safeLib,updatedAt:new Date().toISOString(),author:myName},null,2))));
+    const body={message:`library: ${myName} sync [${new Date().toISOString().slice(0,10)}]`,content:payload,branch};
+    if(ghSha)body.sha=ghSha;
+    const r=await fetch(`https://api.github.com/repos/${settings.ghRepo}/contents/${filename}`,{method:'PUT',headers:ghH(),body:JSON.stringify(body)});
+    if(!r.ok)throw new Error(await r.text());
+    ghSha=(await r.json()).content.sha;
+    saveLib();
+    toast(`Pushed as ${filename} \u2713`);
+  }catch(e){toast(`GitHub: ${(e.message||'Unknown error').slice(0,120)}`)}
+}
+
+// ═══ SETTINGS UI ═════════════════════════════════════════════
+function loadSettingsUI(){
+  document.getElementById('set-provider').value=settings.provider||'openai';
+  document.getElementById('set-apikey').value=settings.apiKey||'';
+  document.getElementById('set-model').value=settings.model||'';
+  document.getElementById('set-username').value=settings.username||'';
+  document.getElementById('set-ghtoken').value=settings.ghToken||'';
+  document.getElementById('set-ghrepo').value=settings.ghRepo||'';
+  document.getElementById('set-ghbranch').value=settings.ghBranch||'main';
+  document.getElementById('set-zotero-key').value=settings.zoteroKey||'';
+  document.getElementById('set-zotero-group').value=settings.zoteroGroup||'';
+  document.getElementById('set-drive-key').value=settings.driveKey||'';
+  document.getElementById('set-drive-folder').value=settings.driveFolder||'';
+  document.getElementById('set-storage-mode').value=settings.storageMode||'local';
+  const s=document.getElementById('set-ai-status');
+  s.className='status-badge '+(settings.apiKey?'status-ok':'status-no');
+  s.textContent=settings.apiKey?`\u2713 Key configured (${settings.provider})`:'No key \u2014 AI features disabled';
+  const g=document.getElementById('set-gh-status');
+  if(settings.ghToken&&settings.ghRepo){g.className='status-badge status-ok';g.textContent=`\u2713 ${settings.ghRepo} / ${settings.ghBranch||'main'}`}
+  else{g.className='status-badge status-no';g.textContent='Not configured'}
+}
+function saveSettings(){
+  settings.provider=document.getElementById('set-provider').value;
+  settings.apiKey=document.getElementById('set-apikey').value.trim();
+  settings.model=document.getElementById('set-model').value.trim();
+  settings.username=document.getElementById('set-username').value.trim();
+  settings.ghToken=document.getElementById('set-ghtoken').value.trim();
+  settings.ghRepo=document.getElementById('set-ghrepo').value.trim();
+  settings.ghBranch=document.getElementById('set-ghbranch').value.trim()||'main';
+  settings.zoteroKey=document.getElementById('set-zotero-key').value.trim();
+  const rawGroup = document.getElementById('set-zotero-group').value.trim();
+  const groupUrlMatch = rawGroup.match(/zotero\.org\/groups\/(\d+)/);
+  settings.zoteroGroup = groupUrlMatch ? groupUrlMatch[1] : rawGroup.replace(/[^\d]/g,'') || rawGroup;
+  document.getElementById('set-zotero-group').value = settings.zoteroGroup;
+  settings.driveKey=document.getElementById('set-drive-key').value.trim();
+  settings.driveFolder=document.getElementById('set-drive-folder').value.trim();
+  settings.storageMode=document.getElementById('set-storage-mode').value;
+  saveCfg();loadSettingsUI();renderAiStatus();
+  const hasGh=settings.ghToken&&settings.ghRepo;
+  document.getElementById('gh-pull-btn').style.display=hasGh?'':'none';
+  document.getElementById('gh-push-btn').style.display=hasGh?'':'none';
+  const hasZotero=!!(settings.zoteroKey&&settings.zoteroGroup);
+  document.getElementById('zotero-sync-btn').style.display=hasZotero?'':'none';
+  document.getElementById('gh-bar').style.display=hasGh?'':'none';
+  if(hasGh)document.getElementById('gh-bar').textContent=`\u{1f504} GitHub: ${settings.ghRepo} / ${settings.ghBranch}`;
+  toast('Settings saved \u2713');
+}
+
+// ═══ AI ══════════════════════════════════════════════════════
+function renderAiStatus(){
+  const lock=document.getElementById('ai-lock'),meta=document.getElementById('ai-meta');
+  const noKey=document.getElementById('ai-no-key'),content=document.getElementById('ai-content');
+  if(settings.apiKey){
+    lock.style.display='none';
+    const model=settings.model||(settings.provider==='anthropic'?'claude-haiku-4-5-20251001':'gpt-4o-mini');
+    meta.textContent=`${settings.provider} \u00b7 ${model} \u00b7 ${library.length} papers in context`;
+    noKey.style.display='none';content.style.display='';
+  }else{
+    lock.textContent='\u{1f512}';lock.style.display='';meta.textContent='Configure AI in Settings';
+    noKey.style.display='';content.style.display='none';
+  }
+}
+renderAiStatus();
+
+async function aiCall(messages,maxTokens=900){
+  if(!settings.apiKey)throw new Error('No API key');
+  const model=settings.model||(settings.provider==='anthropic'?'claude-haiku-4-5-20251001':'gpt-4o-mini');
+  if(settings.provider==='anthropic'){
+    const system=messages.find(m=>m.role==='system')?.content||'';
+    const msgs=messages.filter(m=>m.role!=='system');
+    const r=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',headers:{'x-api-key':settings.apiKey,'anthropic-version':'2023-06-01','Content-Type':'application/json'},
+      body:JSON.stringify({model,max_tokens:maxTokens,temperature:.3,...(system?{system}:{}),messages:msgs}),
+    });
+    if(!r.ok){let t=await r.text().catch(()=>'');try{const j=JSON.parse(t);t=j.error?.message||j.message||t}catch(_){}throw new Error(`Anthropic ${r.status}: ${t.slice(0,120)}`)}
+    return(await r.json()).content[0].text.trim();
+  }
+  const r=await fetch('https://api.openai.com/v1/chat/completions',{
+    method:'POST',headers:{'Authorization':`Bearer ${settings.apiKey}`,'Content-Type':'application/json'},
+    body:JSON.stringify({model,messages,max_tokens:maxTokens,temperature:.3}),
+  });
+  if(!r.ok){const t=await r.text();throw new Error(`OpenAI ${r.status}: ${t}`)}
+  return(await r.json()).choices[0].message.content.trim();
+}
+async function aiSummarize(p){
+  toast('Generating summary\u2026',8000);
+  try{
+    const s=await aiCall([
+      {role:'system',content:'Write a concise 3-4 sentence summary. Core problem, method, key result, significance. Do not start with "This paper".'},
+      {role:'user',content:`Title: ${p.title}\nAuthors: ${(p.authors||[]).slice(0,5).join(', ')}\n\nAbstract:\n${p.summary}`},
+    ],320);
+    const entry=library.find(x=>x.arxivId===p.arxivId);
+    if(entry){entry.note=(entry.note?entry.note+'\n\n':'')+`[AI Summary]\n${s}`;saveLib();renderLib()}
+    toast('Summary added to notes \u2713');
+  }catch(e){toast(`AI: ${e.message}`)}
+}
+async function doSuggest(){
+  if(!library.length){toast('Library is empty');return}
+  const btn=document.getElementById('sug-btn');btn.disabled=true;btn.textContent='Analyzing\u2026';
+  document.getElementById('sugs').innerHTML='';
+  const titles=library.map(p=>`- ${p.title} [${(p.cats||[''])[0]}]`).join('\n');
+  const cats=[...new Set(library.flatMap(p=>(p.cats||[]).slice(0,2)))].slice(0,10).join(', ');
+  try{
+    const raw=await aiCall([
+      {role:'system',content:'You are a research advisor. Respond ONLY with a JSON array, no markdown. Format: [{"query":"arxiv query","reason":"one sentence"}]'},
+      {role:'user',content:`Suggest 5 targeted arXiv search queries.\nCategories: ${cats}\nPapers:\n${titles}\nReturn exactly 5 objects.`},
+    ],640);
+    const sugs=JSON.parse(raw.replace(/```json|```/g,'').trim());
+    const box=document.getElementById('sugs');
+    sugs.forEach(s=>{
+      const div=document.createElement('div');div.className='sug';
+      div.innerHTML=`<div class="sug-q"><code>${esc(s.query)}</code><button class="sug-sb">Search \u2197</button></div><div class="sug-r">${esc(s.reason)}</div>`;
+      div.querySelector('.sug-sb').addEventListener('click',()=>{document.getElementById('kw-input').value=s.query;setTab('search');setTimeout(doSearch,200)});
+      box.appendChild(div);
+    });
+  }catch(e){toast(`AI: ${e.message}`)}
+  finally{btn.disabled=false;btn.textContent='Generate suggestions'}
+}
+async function sendChat(){
+  const q=document.getElementById('chat-in').value.trim();
+  if(!q||!settings.apiKey||!library.length)return;
+  document.getElementById('chat-in').value='';
+  appendMsg('user',q);chatHistory.push({role:'user',content:q});
+  const context=library.map((p,i)=>{
+    const year=p.published?.slice(0,4)||'?';
+    const note=p.note?`\n  Note: ${p.note.slice(0,120)}`:''; // note sent to AI provider — trimmed
+    return`[${i+1}] "${p.title}" \u2014 ${(p.authors||[]).slice(0,3).join(', ')} (${year}) [${(p.cats||[''])[0]}]${note}\n  Abstract: ${(p.summary||'').slice(0,450)}\u2026`;
+  }).join('\n\n');
+  const sys=`You are a research assistant with access to a scientist's personal paper library.\nLibrary (${library.length} papers):\n---\n${context}\n---\nReference papers by title or [number]. Be concise and precise.`;
+  const loadEl=appendMsg('asst','Thinking\u2026',true);
+  try{
+    if(chatHistory.length > 40) chatHistory = chatHistory.slice(-40); // prevent unbounded memory
+  const msgs=[{role:'system',content:sys},...chatHistory.slice(-8)];
+    const answer=await aiCall(msgs);
+    loadEl.querySelector('.cmsg-txt').textContent=answer;loadEl.querySelector('.cmsg-txt').classList.remove('thinking');
+    chatHistory.push({role:'assistant',content:answer});
+  }catch(e){loadEl.querySelector('.cmsg-txt').textContent=`Error: ${e.message}`;loadEl.classList.add('err')}
+  document.getElementById('chat-in').focus();
+}
+function appendMsg(role,txt,thinking=false){
+  const win=document.getElementById('chat-win');
+  win.querySelector('.chat-empty')?.remove();
+  const div=document.createElement('div');div.className=`cmsg ${role==='user'?'user':'asst'}`;
+  div.innerHTML=`<div class="cmsg-role">${role==='user'?'You':'AI'}</div><div class="cmsg-txt${thinking?' thinking':''}">${esc(txt)}</div>`;
+  win.appendChild(div);win.scrollTop=win.scrollHeight;return div;
+}
+function clearChat(){document.getElementById('chat-win').innerHTML='<div class="chat-empty"><p>Try: <em>"What are the main themes?"</em></p></div>';chatHistory=[]}
+
+
+// ═══ ZOTERO INTEGRATION ════════════════════════════════════════
+
+const ZOTERO_BASE = 'https://api.zotero.org';
+
+async function zoteroFetch(path, options={}){
+  const key = settings.zoteroKey;
+  if(!key) throw new Error('No Zotero API key configured in Settings.');
+  const headers = { 'Zotero-API-Key': key, 'Zotero-API-Version': '3', ...( options.headers||{}) };
+  const url = ZOTERO_BASE + path;
+
+  // In Electron: IPC only does GET, so for POST we use fetch directly
+  // (Zotero API supports CORS, so browser fetch works fine)
+  const r = await fetch(url, { ...options, headers });
+  if(!r.ok){
+    const txt = await r.text().catch(()=>'');
+    throw new Error(`Zotero ${r.status}: ${txt.slice(0,200)}`);
+  }
+  const ct = r.headers.get('content-type')||'';
+  if(ct.includes('json')) return r.json();
+  return r.text();
+}
+
+async function testZotero(){
+  const st = document.getElementById('set-zotero-status');
+  st.textContent = 'Testing…'; st.style.color = 'var(--ink3)';
+  try {
+    const key   = document.getElementById('set-zotero-key').value.trim();
+    const group = document.getElementById('set-zotero-group').value.trim();
+    if(!key)   throw new Error('Enter your Zotero API key first.');
+    if(!group) throw new Error('Enter your Group ID first (the number in the group URL).');
+    // Auto-extract number if user pasted a full URL
+    const groupMatch = group.match(/zotero\.org\/groups\/(\d+)/);
+    let resolvedGroup = groupMatch ? groupMatch[1] : group;
+    if(groupMatch){
+      document.getElementById('set-zotero-group').value = resolvedGroup;
+    }
+    if(!/^\d+$/.test(resolvedGroup)) throw new Error('Group ID must be a number — paste just the number from the URL, e.g. 5823491');
+
+    const headers = { 'Zotero-API-Key': key, 'Zotero-API-Version': '3' };
+
+    // Step 1 — verify the key itself works (check personal library)
+    const keyCheck = await fetch(`${ZOTERO_BASE}/keys/${key}`, { headers });
+    if(keyCheck.status === 403 || keyCheck.status === 404){
+      throw new Error('API key not recognised — copy it again from zotero.org/settings/keys');
+    }
+    const keyData = keyCheck.ok ? await keyCheck.json() : null;
+
+    // Step 2 — verify group exists and key has access
+    const groupCheck = await fetch(`${ZOTERO_BASE}/groups/${resolvedGroup}`, { headers });
+    if(groupCheck.status === 404){
+      throw new Error(`Group ID ${resolvedGroup} not found — check the number in your group's URL`);
+    }
+    if(groupCheck.status === 403){
+      throw new Error(`API key has no access to group ${resolvedGroup} — enable group access when creating the key`);
+    }
+    if(!groupCheck.ok){
+      throw new Error(`Group check failed: HTTP ${groupCheck.status}`);
+    }
+    const groupData = await groupCheck.json();
+    const groupName = groupData.data?.name || groupData.name || resolvedGroup;
+
+    // Step 3 — count items
+    const items = await fetch(`${ZOTERO_BASE}/groups/${resolvedGroup}/items?limit=1`, { headers });
+    const total = items.headers.get('Total-Results') || '0';
+
+    st.innerHTML = `✓ Connected to "<strong>${esc(groupName||"")}</strong>" · ${total} item${total!=='1'?'s':''}`;
+    st.style.color = 'var(--grn,#2a7)';
+  } catch(e) {
+    st.textContent = `✗ ${e.message}`;
+    st.style.color = '#c00';
+  }
+}
+
+// Convert an arXiv paper object to a Zotero item
+function paperToZoteroItem(p){
+  const authors = (p.authors||[]).map(a => {
+    const name = typeof a === 'string' ? a : (a.name || a.toString() || '');
+    const parts = name.trim().split(' ').filter(Boolean);
+    if(parts.length === 0) return null;
+    return { creatorType: 'author', firstName: parts.slice(0,-1).join(' '), lastName: parts[parts.length-1] };
+  }).filter(Boolean);
+  const arxivId = p.arxivId || p.id || '';
+  return {
+    itemType: 'preprint',
+    title: p.title || '',
+    creators: authors,
+    abstractNote: p.summary || p.abstract || '',
+    date: (p.published||p.date||'').slice(0,10),
+    url: `https://arxiv.org/abs/${arxivId}`,
+    repository: 'arXiv',
+    archiveID: `arXiv:${arxivId}`,
+    DOI: '',
+    tags: (p.tags||[]).map(t => ({ tag: t })),
+    extra: `arXiv: ${arxivId}\nSaved by: ${settings.username||'unknown'}\nSaved at: ${new Date().toISOString().slice(0,10)}`,
+  };
+}
+
+async function saveToZotero(p){
+  const group = settings.zoteroGroup;
+  if(!group) throw new Error('No Zotero Group ID in Settings.');
+  const item = paperToZoteroItem(p);
+  const data = await zoteroFetch(`/groups/${group}/items`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify([item])
+  });
+  // Returns { successful: { "0": { key, version, data } }, ... }
+  const keys = Object.values(data.successful || {});
+  if(!keys.length) throw new Error('Zotero returned no item key — check permissions.');
+  return keys[0].key; // Zotero item key
+}
+
+async function removeFromZotero(zoteroKey){
+  if(!zoteroKey || !settings.zoteroGroup) return;
+  // Need current version first
+  try {
+    const item = await zoteroFetch(`/groups/${settings.zoteroGroup}/items/${zoteroKey}`);
+    const version = item.version;
+    await zoteroFetch(`/groups/${settings.zoteroGroup}/items/${zoteroKey}`, {
+      method: 'DELETE',
+      headers: { 'If-Unmodified-Since-Version': String(version) }
+    });
+  } catch(e) { console.warn('Zotero delete failed:', e.message); }
+}
+
+async function fetchZoteroLibrary(){
+  const group = settings.zoteroGroup;
+  if(!group) return [];
+  const data = await zoteroFetch(`/groups/${group}/items?itemType=preprint&limit=100&sort=dateAdded&direction=desc`);
+  return (data||[]).map(item => {
+    const d = item.data || {};
+    const arxivId = (d.archiveID||'').replace('arXiv:','') || (d.url||'').replace('https://arxiv.org/abs/','');
+    return {
+      arxivId,
+      title: d.title||'',
+      authors: (d.creators||[]).map(c => ({ name: [c.firstName, c.lastName].filter(Boolean).join(' ') })),
+      published: d.date||'',
+      summary: d.abstractNote||'',
+      note: d.note||'',
+      savedAt: d.dateAdded||'',
+      savedBy: (d.extra||'').match(/Saved by: (.+)/)?.[1]||'',
+      zoteroKey: item.key,
+      driveUrl: (d.extra||'').match(/Drive PDF: (.+)/)?.[1]||'',
+    };
+  });
+}
+
+// ═══ ZOTERO SYNC ══════════════════════════════════════════════
+
+async function syncFromZotero(){
+  if(!settings.zoteroKey || !settings.zoteroGroup){
+    toast('Configure Zotero in Settings first'); return;
+  }
+  const btn = document.getElementById('zotero-sync-btn');
+  btn.disabled = true; btn.textContent = '⟳ Syncing…';
+  try {
+    toast('Fetching Zotero library…', 6000);
+    const result = await actionZoteroSync();
+    if(!result.ok){ toast(`Zotero sync failed: ${result.error.slice(0,100)}`, 5000); return; }
+    renderLib();
+    const { added, updated } = result;
+    toast(added || updated
+      ? `Zotero sync done — ${added} new, ${updated} updated ✓`
+      : 'Zotero sync done — library up to date ✓');
+  } finally {
+    btn.disabled = false; btn.textContent = '⟳ Sync Zotero';
+  }
+}
+
+// ═══ GOOGLE DRIVE INTEGRATION ══════════════════════════════════
+
+const DRIVE_UPLOAD = 'https://www.googleapis.com/upload/drive/v3/files';
+const DRIVE_FILES  = 'https://www.googleapis.com/drive/v3/files';
+const SHEETS_BASE  = 'https://sheets.googleapis.com/v4/spreadsheets';
+
+async function testDrive(){
+  const st = document.getElementById('set-drive-status');
+  st.textContent = 'Testing…'; st.style.color = 'var(--ink3)';
+  try {
+    const key    = document.getElementById('set-drive-key').value.trim();
+    const folder = document.getElementById('set-drive-folder').value.trim();
+    if(!key || !folder) throw new Error('Enter both API key and Folder ID first.');
+    const r = await fetch(`${DRIVE_FILES}?q='${folder}'+in+parents&key=${key}&pageSize=1`);
+    if(!r.ok) throw new Error(`HTTP ${r.status} — check API key and folder ID/sharing settings`);
+    const d = await r.json();
+    if(d.error) throw new Error(d.error.message);
+    st.textContent = `✓ Connected · ${d.files?.length>=0 ? 'folder accessible' : 'check sharing'}`;
+    st.style.color = 'var(--grn,#2a7)';
+  } catch(e) {
+    st.textContent = `✗ ${e.message}`;
+    st.style.color = '#c00';
+  }
+}
+
+// Upload a PDF (fetched as ArrayBuffer) to Google Drive folder
+async function uploadPdfToDrive(arxivId, pdfBuffer){
+  const key    = settings.driveKey;
+  const folder = settings.driveFolder;
+  if(!key || !folder) throw new Error('Google Drive not configured.');
+
+  const filename = `${arxivId.replace('/','_')}.pdf`;
+
+  // Check if file already exists
+  const search = await fetch(
+    `${DRIVE_FILES}?q=name='${filename}'+and+'${folder}'+in+parents&key=${key}&fields=files(id,name,webViewLink)`
+  ).then(r=>r.json());
+
+  if(search.files?.length){
+    return search.files[0].webViewLink; // already uploaded
+  }
+
+  // Multipart upload: metadata + binary
+  const metadata = JSON.stringify({ name: filename, parents: [folder] });
+  const boundary = 'arxiv_pdf_boundary';
+
+  const encoder = new TextEncoder();
+  const metaPart = encoder.encode(
+    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n--${boundary}\r\nContent-Type: application/pdf\r\n\r\n`
+  );
+  const closePart = encoder.encode(`\r\n--${boundary}--`);
+
+  const body = new Uint8Array(metaPart.length + pdfBuffer.byteLength + closePart.length);
+  body.set(metaPart, 0);
+  body.set(new Uint8Array(pdfBuffer), metaPart.length);
+  body.set(closePart, metaPart.length + pdfBuffer.byteLength);
+
+  const r = await fetch(`${DRIVE_UPLOAD}?uploadType=multipart&key=${key}&fields=id,webViewLink`, {
+    method: 'POST',
+    headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
+    body
+  });
+  if(!r.ok){
+    const err = await r.json().catch(()=>({error:{message:'Upload failed'}}));
+    throw new Error(err.error?.message || `Drive upload ${r.status}`);
+  }
+  const d = await r.json();
+
+  // Make file readable by anyone with link
+  await fetch(`${DRIVE_FILES}/${d.id}/permissions?key=${key}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ role: 'reader', type: 'anyone' })
+  });
+
+  return d.webViewLink;
+}
+
+// Find or get the ID of papers.xlsx in the Drive folder
+let _xlsxFileId = null;
+async function getOrCreateXlsx(){
+  const key    = settings.driveKey;
+  const folder = settings.driveFolder;
+
+  const search = await fetch(
+    `${DRIVE_FILES}?q=name='papers.xlsx'+and+'${folder}'+in+parents&key=${key}&fields=files(id)`
+  ).then(r=>r.json());
+
+  if(search.files?.length) return search.files[0].id;
+
+  // Create empty xlsx with headers
+  const header = ['arXiv ID','Title','Authors','Date','Category','Saved By','Saved At','Drive PDF','Zotero Key','Abstract'];
+  const csvLine = header.map(h=>`"${h}"`).join(',') + '\r\n';
+  const blob = new Blob([csvLine], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const buf  = await blob.arrayBuffer();
+
+  const metadata = JSON.stringify({ name: 'papers.xlsx', parents: [folder],
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const boundary = 'xlsx_boundary';
+  const encoder  = new TextEncoder();
+  const metaPart  = encoder.encode(`--${boundary}\r\nContent-Type: application/json\r\n\r\n${metadata}\r\n--${boundary}\r\nContent-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\r\n\r\n`);
+  const closePart = encoder.encode(`\r\n--${boundary}--`);
+  const body = new Uint8Array(metaPart.length + buf.byteLength + closePart.length);
+  body.set(metaPart,0); body.set(new Uint8Array(buf), metaPart.length); body.set(closePart, metaPart.length+buf.byteLength);
+
+  const r = await fetch(`${DRIVE_UPLOAD}?uploadType=multipart&key=${key}&fields=id`, {
+    method:'POST', headers:{'Content-Type':`multipart/related; boundary=${boundary}`}, body
+  });
+  const d = await r.json();
+  return d.id;
+}
+
+// Append a row to papers.xlsx via Google Sheets API (Drive API for xlsx updates is complex;
+// we instead store a companion papers_log.csv which is simpler to append to)
+async function appendToDriveLog(p, driveUrl, zoteroKey){
+  const key    = settings.driveKey;
+  const folder = settings.driveFolder;
+  if(!key || !folder) return;
+
+  const authors = (p.authors||[]).map(a=>typeof a==='string'?a:(a.name||'')).join('; ');
+  const row = [
+    p.arxivId||'',
+    (p.title||'').replace(/"/g,"'"),
+    authors.replace(/"/g,"'"),
+    (p.published||p.date||'').slice(0,10),
+    p.category||'',
+    settings.username||'',
+    new Date().toISOString().slice(0,10),
+    driveUrl||'',
+    zoteroKey||'',
+    (p.summary||'').slice(0,300).replace(/"/g,"'").replace(/\n/g,' '),
+  // Prefix cells starting with = + - @ to prevent spreadsheet formula injection
+  ].map(v => {
+    const s = String(v);
+    return `"${/^[=+\-@]/.test(s) ? "'" + s : s}"`;
+  }).join(',');
+
+  // Find or create the CSV log file
+  const fname = 'papers_log.csv';
+  const search = await fetch(
+    `${DRIVE_FILES}?q=name='${fname}'+and+'${folder}'+in+parents&key=${key}&fields=files(id)`
+  ).then(r=>r.json()).catch(()=>({files:[]}));
+
+  if(search.files?.length){
+    // Append: download current content, add row, re-upload
+    const fileId = search.files[0].id;
+    const existing = await fetch(`${DRIVE_FILES}/${fileId}?alt=media&key=${key}`).then(r=>r.text()).catch(()=>'');
+    const header = existing.trim() ? '' : '"arXiv ID","Title","Authors","Date","Category","Saved By","Saved At","Drive PDF","Zotero Key","Abstract"\r\n';
+    const newContent = existing + (existing.endsWith('\n')?'':'\r\n') + row + '\r\n';
+    await fetch(`${DRIVE_UPLOAD}/${fileId}?uploadType=media&key=${key}`, {
+      method:'PATCH', headers:{'Content-Type':'text/csv'}, body: header+newContent
+    });
+  } else {
+    // Create fresh
+    const header = '"arXiv ID","Title","Authors","Date","Category","Saved By","Saved At","Drive PDF","Zotero Key","Abstract"\r\n';
+    const content = header + row + '\r\n';
+    const metadata = JSON.stringify({ name: fname, parents: [folder], mimeType:'text/csv' });
+    const boundary = 'csv_boundary';
+    const encoder  = new TextEncoder();
+    const metaPart  = encoder.encode(`--${boundary}\r\nContent-Type: application/json\r\n\r\n${metadata}\r\n--${boundary}\r\nContent-Type: text/csv\r\n\r\n`);
+    const closePart = encoder.encode(`\r\n--${boundary}--`);
+    const buf = encoder.encode(content);
+    const body = new Uint8Array(metaPart.length+buf.length+closePart.length);
+    body.set(metaPart,0); body.set(buf,metaPart.length); body.set(closePart,metaPart.length+buf.length);
+    await fetch(`${DRIVE_UPLOAD}?uploadType=multipart&key=${key}`, {
+      method:'POST', headers:{'Content-Type':`multipart/related; boundary=${boundary}`}, body
+    });
+  }
+}
+
+// ═══ UNIFIED SAVE — orchestrates local + Zotero + Drive ════════
+
+async function saveWithIntegrations(p, savebtn){
+  const mode = settings.storageMode || 'local';
+  // Auto-upgrade: if services are configured but mode is still 'local', use them
+  const hasZotero = !!(settings.zoteroKey && settings.zoteroGroup);
+  const hasDrive  = !!(settings.driveKey && settings.driveFolder);
+  const useZotero = mode === 'zotero' || mode === 'both' || (mode === 'local' && hasZotero);
+  const useDrive  = mode === 'drive'  || mode === 'both' || (mode === 'local' && hasDrive && mode !== 'local');
+  // (Drive requires explicit opt-in since it uploads files; Zotero is safe to auto-enable)
+
+  let zoteroKey = null;
+  let driveUrl  = null;
+
+  // ── Local save via action (no inline DOM / library mutation here) ──────────
+  const saveResult = await actionSavePaper(p);
+  if (!saveResult.ok) { toast(`Save failed: ${saveResult.error}`); return; }
+  const entry   = saveResult.entry;
+  const arxivId = entry.arxivId;
+
+  if(savebtn){ savebtn.className='lb ls saved'; savebtn.textContent='✓ In Library'; }
+  const modeDesc = useZotero && useDrive ? 'Saving to Zotero + Drive…' :
+                   useZotero ? 'Saving to Zotero…' :
+                   useDrive  ? 'Uploading to Drive…' : '';
+  toast(modeDesc || 'Saved ✓');
+
+  // ── Zotero via action (no inline try/catch around API) ────────────────────
+  if(useZotero && settings.zoteroKey && settings.zoteroGroup){
+    toast('Syncing to Zotero…', 3000);
+    const z = await actionZoteroSave(entry);
+    if(z.ok){
+      zoteroKey = z.zoteroKey;
+      entry.zoteroKey = zoteroKey;
+      saveLib();
+      toast('Zotero ✓');
+    } else {
+      toast(`Zotero failed: ${z.error}`, 5000);
+      console.error('Zotero save error:', z.error);
+    }
+  }
+
+  // ── Google Drive PDF + log (async) — unchanged, out of agent scope ────────
+  if(useDrive && settings.driveKey && settings.driveFolder){
+    toast('Uploading PDF to Drive…', 5000);
+    try {
+      const safePdfId = (arxivId||'').replace(/[^a-zA-Z0-9./v-]/g,'');
+      const pdfUrl  = `https://arxiv.org/pdf/${safePdfId}`;
+      const pdfResp = await fetch(pdfUrl);
+      if(!pdfResp.ok) throw new Error(`Could not fetch PDF (${pdfResp.status})`);
+      const pdfBuffer = await pdfResp.arrayBuffer();
+      driveUrl = await uploadPdfToDrive(arxivId, pdfBuffer);
+      entry.driveUrl = driveUrl;
+      saveLib();
+      toast('Drive PDF ✓');
+      // Append to CSV log
+      await appendToDriveLog(entry, driveUrl, zoteroKey).catch(e=>console.warn('CSV log failed:',e));
+      // Update Zotero item extra field with Drive URL
+      if(zoteroKey && settings.zoteroGroup){
+        zoteroFetch(`/groups/${settings.zoteroGroup}/items/${zoteroKey}`, {
+          method:'PATCH',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ extra: `arXiv: ${arxivId}\nSaved by: ${settings.username||'unknown'}\nDrive PDF: ${driveUrl}` })
+        }).catch(()=>{});
+      }
+    } catch(e) {
+      toast(`Drive upload failed: ${e.message}`, 5000);
+      console.error('Drive upload error:', e);
+    }
+  }
+}
+
+// ═══ FIND IN RESULTS ════════════════════════════════════════════
+
+let _findMatches = [], _findIdx = 0;
+
+function openFindBar(){
+  const bar = document.getElementById('find-bar');
+  bar.classList.add('open');
+  const inp = document.getElementById('find-input');
+  inp.focus(); inp.select();
+  if(inp.value) runFind();
+}
+
+function closeFindBar(){
+  document.getElementById('find-bar').classList.remove('open');
+  clearFindHighlights();
+  _findMatches = []; _findIdx = 0;
+  document.getElementById('find-count').textContent = '';
+}
+
+function clearFindHighlights(){
+  document.querySelectorAll('.find-hl').forEach(el => {
+    const parent = el.parentNode;
+    parent.replaceChild(document.createTextNode(el.textContent), el);
+    parent.normalize();
+  });
+}
+
+function highlightText(node, term){
+  if(node.nodeType === 3){
+    const matches = [];
+    let remaining = node;
+    while(true){
+      const text = remaining.textContent;
+      const pos = text.toLowerCase().indexOf(term);
+      if(pos === -1) break;
+      const before = document.createTextNode(text.slice(0, pos));
+      const mark = document.createElement('mark');
+      mark.className = 'find-hl';
+      mark.textContent = text.slice(pos, pos + term.length);
+      const after = document.createTextNode(text.slice(pos + term.length));
+      const parent = remaining.parentNode;
+      parent.insertBefore(before, remaining);
+      parent.insertBefore(mark, remaining);
+      parent.insertBefore(after, remaining);
+      parent.removeChild(remaining);
+      matches.push(mark);
+      remaining = after;
+    }
+    return matches;
+  }
+  if(node.nodeType === 1 && !['SCRIPT','STYLE','INPUT','TEXTAREA'].includes(node.tagName)){
+    const matches = [];
+    Array.from(node.childNodes).forEach(child => matches.push(...highlightText(child, term)));
+    return matches;
+  }
+  return [];
+}
+
+function runFind(){
+  clearFindHighlights();
+  _findMatches = []; _findIdx = 0;
+  const term = document.getElementById('find-input').value.trim().toLowerCase();
+  if(!term){ document.getElementById('find-count').textContent = ''; return; }
+  const feed = document.getElementById('feed');
+  _findMatches = highlightText(feed, term);
+  const count = document.getElementById('find-count');
+  if(!_findMatches.length){ count.textContent = 'No matches'; count.style.color='#c00'; return; }
+  count.style.color = 'var(--ink3)';
+  scrollToMatch(0);
+}
+
+function scrollToMatch(idx){
+  _findMatches.forEach(m => m.classList.remove('find-current'));
+  if(!_findMatches.length) return;
+  _findIdx = ((idx % _findMatches.length) + _findMatches.length) % _findMatches.length;
+  const m = _findMatches[_findIdx];
+  m.classList.add('find-current');
+  m.scrollIntoView({ behavior:'smooth', block:'center' });
+  document.getElementById('find-count').textContent = `${_findIdx+1} / ${_findMatches.length}`;
+}
+
+(function(){
+  const inp  = document.getElementById('find-input');
+  const next = document.getElementById('find-next');
+  const prev = document.getElementById('find-prev');
+  const cls  = document.getElementById('find-close');
+  inp.addEventListener('input', runFind);
+  inp.addEventListener('keydown', e => {
+    if(e.key === 'Enter'){ e.preventDefault(); scrollToMatch(e.shiftKey ? _findIdx-1 : _findIdx+1); }
+    if(e.key === 'Escape'){ closeFindBar(); }
+  });
+  next.addEventListener('click', () => scrollToMatch(_findIdx+1));
+  prev.addEventListener('click', () => scrollToMatch(_findIdx-1));
+  cls.addEventListener('click', closeFindBar);
+  document.addEventListener('keydown', e => {
+    if((e.ctrlKey || e.metaKey) && e.key === 'f'){
+      const searchTab = document.getElementById('tab-search');
+      if(searchTab && searchTab.style.display !== 'none'){
+        e.preventDefault();
+        openFindBar();
+      }
+    }
+    if(e.key === 'Escape') closeFindBar();
+  });
+})();
+
+// ═══ LOCAL API SECTION ════════════════════════════════════════
+// Only functional in Electron (window.electronAPI must expose the IPC methods)
+const _isElectron = !!(window.electronAPI && window.electronAPI.apiKeysList);
+
+// Sync library to main process so /v1/library stays up-to-date.
+// Called by saveLib() and once at startup.
+function syncLibraryToMain(){
+  if(!window.electronAPI?.syncLibrary) return;
+  // Send only safe, non-secret fields
+  const safeLib=library.map(({arxivId,title,authors,published,summary,cats,doi,jref,savedAt,savedBy,zoteroKey,driveUrl,note})=>
+    ({arxivId,title,authors,published,summary,cats,doi,jref,savedAt,savedBy,zoteroKey,driveUrl,note}));
+  window.electronAPI.syncLibrary(safeLib);
+}
+
+async function loadApiSection(){
+  if(!_isElectron) return;
+  const [keys, status] = await Promise.all([
+    window.electronAPI.apiKeysList(),
+    window.electronAPI.apiServerStatus(),
+  ]);
+  renderApiKeys(keys);
+  updateApiServerStatus(status);
+}
+
+function updateApiServerStatus({running, port}){
+  const dot = document.getElementById('api-dot');
+  const txt = document.getElementById('api-status-text');
+  const btn = document.getElementById('api-toggle-btn');
+  if(!dot) return;
+  dot.classList.toggle('on', running);
+  txt.textContent = running ? `Running on port ${port}` : 'Server stopped';
+  txt.style.color = running ? 'var(--grn)' : 'var(--ink3)';
+  btn.textContent = running ? 'Stop' : 'Start';
+  if(running && port) document.getElementById('api-port').value = port;
+}
+
+function renderApiKeys(keys){
+  const container = document.getElementById('api-keys-container');
+  if(!container) return;
+  if(!keys.length){
+    container.innerHTML='<div style="font-size:.64rem;color:var(--ink3)">No keys yet. Create one below.</div>';
+    return;
+  }
+  const rows = keys.map(k=>`
+    <tr>
+      <td>${esc(k.name)}</td>
+      <td><code>axk_••••••••</code></td>
+      <td>${k.created ? new Date(k.created).toLocaleDateString() : '—'}</td>
+      <td>${k.lastUsed ? new Date(k.lastUsed).toLocaleDateString() : 'Never'}</td>
+      <td>
+        <button onclick="deleteApiKey('${esc(k.id)}')" style="background:none;border:1px solid rgba(184,76,30,.3);color:var(--acc);padding:.12rem .42rem;font-size:.58rem;cursor:pointer;font-family:inherit">Delete</button>
+      </td>
+    </tr>`).join('');
+  container.innerHTML=`
+    <table class="api-table">
+      <thead><tr><th>Name</th><th>Key</th><th>Created</th><th>Last used</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+async function createApiKey(){
+  if(!_isElectron){ toast('API server only available in the desktop app'); return; }
+  const name = document.getElementById('api-new-key-name').value.trim();
+  if(!name){ toast('Enter a name for this key'); return; }
+  const record = await window.electronAPI.apiKeyCreate(name);
+  document.getElementById('api-new-key-name').value = '';
+  // Show the full key exactly once — it is never retrievable again
+  const flash = document.getElementById('key-flash');
+  flash.innerHTML=`<strong>Copy this key now — it will not be shown again:</strong><br><br>`+
+    `<code style="font-size:.76rem;letter-spacing:.04em;color:var(--ink)">${esc(record.key)}</code>&nbsp;&nbsp;`+
+    `<button onclick="copyApiKey('${esc(record.key)}')" style="background:var(--grn);color:#fff;border:none;padding:.22rem .65rem;font-size:.64rem;cursor:pointer;font-family:inherit;margin-top:.35rem">Copy</button>`;
+  flash.classList.add('show');
+  const keys = await window.electronAPI.apiKeysList();
+  renderApiKeys(keys);
+  toast('API key created ✓');
+}
+
+async function deleteApiKey(id){
+  if(!_isElectron) return;
+  if(!confirm('Delete this API key?\n\nAny agent using it will lose access immediately.')) return;
+  await window.electronAPI.apiKeyDelete(id);
+  document.getElementById('key-flash').classList.remove('show');
+  const keys = await window.electronAPI.apiKeysList();
+  renderApiKeys(keys);
+  toast('Key deleted ✓');
+}
+
+function copyApiKey(key){
+  navigator.clipboard?.writeText(key)
+    .then(()=>toast('Key copied to clipboard ✓'))
+    .catch(()=>toast('Copy failed — select and copy manually'));
+}
+
+async function toggleApiServer(){
+  if(!_isElectron){ toast('API server only available in the desktop app'); return; }
+  const status = await window.electronAPI.apiServerStatus();
+  if(status.running){
+    await window.electronAPI.apiServerStop();
+  } else {
+    const portVal = parseInt(document.getElementById('api-port').value) || 7842;
+    if(portVal < 1024 || portVal > 65535){ toast('Port must be between 1024 and 65535'); return; }
+    await window.electronAPI.apiServerStart(portVal);
+  }
+  const newStatus = await window.electronAPI.apiServerStatus();
+  updateApiServerStatus(newStatus);
+}
+
+function toggleApiDocs(){
+  const body = document.getElementById('api-docs-body');
+  const btn  = body.previousElementSibling;
+  body.classList.toggle('open');
+  btn.textContent = body.classList.contains('open') ? '▾ Hide usage examples (curl)' : '▸ Show usage examples (curl)';
+}
+
+// Receive paper pushed by an external agent via POST /v1/library
+if(window.electronAPI?.onAddPaperFromApi){
+  window.electronAPI.onAddPaperFromApi(raw => {
+    if(!raw || typeof raw.arxivId !== 'string' || !raw.arxivId.trim()) return;
+    // Sanitise all incoming fields — never trust external input
+    const paper = {
+      arxivId:   String(raw.arxivId).replace(/[^a-zA-Z0-9./v-]/g,'').slice(0,100),
+      title:     String(raw.title||'').slice(0,500),
+      authors:   (Array.isArray(raw.authors)?raw.authors:[]).map(a=>String(a).slice(0,200)).slice(0,50),
+      published: String(raw.published||'').slice(0,30),
+      summary:   String(raw.summary||'').slice(0,3000),
+      cats:      (Array.isArray(raw.cats)?raw.cats:[]).map(c=>String(c).slice(0,50)).slice(0,10),
+      doi:       String(raw.doi||'').replace(/[^a-zA-Z0-9./_-]/g,'').slice(0,100),
+      jref:      String(raw.jref||'').slice(0,200),
+      savedAt:   new Date().toISOString(),
+      savedBy:   'API',
+      note:      '',
+      zoteroKey: null,
+      driveUrl:  null,
+      id:        `https://arxiv.org/abs/${String(raw.arxivId).replace(/[^a-zA-Z0-9./v-]/g,'').slice(0,100)}`,
+      pdfLink:   `https://arxiv.org/pdf/${String(raw.arxivId).replace(/[^a-zA-Z0-9./v-]/g,'').slice(0,100)}`,
+    };
+    if(!library.find(x=>x.arxivId===paper.arxivId)){
+      library.push(paper);
+      saveLib();
+      toast(`API: added "${paper.title.slice(0,55)}" ✓`);
+    }
+  });
+}
+
+// Receive remove-paper signal from agent via DELETE /v1/library/:arxivId
+if(window.electronAPI?.onRemovePaperFromApi){
+  window.electronAPI.onRemovePaperFromApi(arxivId => {
+    const result = actionRemovePaper(arxivId);
+    if(result.ok) renderLib();
+  });
+}
+
+// Receive update-note signal from agent via PATCH /v1/library/:arxivId
+if(window.electronAPI?.onUpdateNoteFromApi){
+  window.electronAPI.onUpdateNoteFromApi(({arxivId, note}) => {
+    actionUpdateNote(arxivId, note);
+    renderLib();
+  });
+}
+
+// ═══ INIT ════════════════════════════════════════════════════
+(function(){
+  const hasGh=settings.ghToken&&settings.ghRepo;
+  document.getElementById('gh-pull-btn').style.display=hasGh?'':'none';
+  document.getElementById('gh-push-btn').style.display=hasGh?'':'none';
+  const hasZotero2=!!(settings.zoteroKey&&settings.zoteroGroup);
+  document.getElementById('zotero-sync-btn').style.display=hasZotero2?'':'none';
+  if(hasGh){
+    document.getElementById('gh-bar').textContent=`\u{1f504} GitHub: ${settings.ghRepo} / ${settings.ghBranch||'main'}`;
+    document.getElementById('gh-bar').style.display='';
+  }
+  // Prime the library cache in main process for the /v1/library endpoint
+  syncLibraryToMain();
+})();
+</script>
+</body>
+</html>
