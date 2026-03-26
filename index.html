@@ -395,7 +395,7 @@ body{background:var(--bg);color:var(--ink);font-family:'IBM Plex Mono',monospace
       <div class="set-sec-t">👤 Identity</div>
       <div class="set-row">
         <label class="set-label">Your name <span>— shown on papers you save (used for Zotero and Drive attribution)</span></label>
-        <input class="set-input" id="set-username" type="text" placeholder="e.g. Alice, Dr. Smith…"/>
+        <input class="set-input" id="set-username" type="text" placeholder="e.g. Alice, Dr. Smith…" oninput="autoSaveSettings()"/>
       </div>
     </div>
 
@@ -403,16 +403,13 @@ body{background:var(--bg);color:var(--ink);font-family:'IBM Plex Mono',monospace
       <div class="set-sec-t">📚 Zotero <span style="font-size:.6rem;color:var(--ink3);font-weight:400;text-transform:none;letter-spacing:0">— shared lab reference library</span></div>
       <div class="set-row">
         <label class="set-label">API Key <span>— zotero.org → Settings → Feeds/API → Create new private key (Read/Write access to groups)</span></label>
-        <input class="set-input" id="set-zotero-key" type="password" placeholder="your Zotero API key"/>
+        <input class="set-input" id="set-zotero-key" type="password" placeholder="your Zotero API key" onchange="autoSaveSettings();autoTestZotero()"/>
       </div>
       <div class="set-row">
         <label class="set-label">Group Library ID <span>— visible in URL of your group: zotero.org/groups/<strong>123456</strong>/…</span></label>
-        <input class="set-input" id="set-zotero-group" type="text" placeholder="e.g. 1234567"/>
+        <input class="set-input" id="set-zotero-group" type="text" placeholder="e.g. 1234567" onchange="autoSaveSettings();autoTestZotero()"/>
       </div>
-      <div class="set-row" style="display:flex;gap:.5rem;align-items:center">
-        <button class="sbtn" onclick="testZotero()" style="font-size:.7rem">Test connection</button>
-        <div id="set-zotero-status" style="font-size:.7rem;color:var(--ink3)"></div>
-      </div>
+      <div id="set-zotero-status" style="font-size:.7rem;color:var(--ink3);padding:.2rem 0"></div>
       <p class="set-hint">
         Create a free group at <a href="#" onclick="openUrl('https://www.zotero.org/groups/new')">zotero.org/groups/new</a> ·
         Get API key at <a href="#" onclick="openUrl('https://www.zotero.org/settings/keys')">zotero.org/settings/keys</a>
@@ -423,14 +420,14 @@ body{background:var(--bg);color:var(--ink);font-family:'IBM Plex Mono',monospace
       <div class="set-sec-t">🤖 AI Agent <span style="font-size:.6rem;color:var(--ink3);font-weight:400;text-transform:none;letter-spacing:0">— optional</span></div>
       <div class="set-row">
         <label class="set-label">Provider</label>
-        <select class="set-select" id="set-provider">
+        <select class="set-select" id="set-provider" onchange="autoSaveSettings()">
           <option value="openai">OpenAI (GPT-4o-mini — fast, affordable)</option>
           <option value="anthropic">Anthropic (Claude Haiku — fast, affordable)</option>
         </select>
       </div>
       <div class="set-row">
         <label class="set-label">API Key <span>— stored on this computer only, sent only to the AI provider</span></label>
-        <input class="set-input" id="set-apikey" type="password" placeholder="sk-… or sk-ant-…"/>
+        <input class="set-input" id="set-apikey" type="password" placeholder="sk-… or sk-ant-…" onchange="autoSaveSettings()"/>
         <div id="set-ai-status"></div>
         <p class="set-hint">
           Get a free-tier key: <a href="#" onclick="openUrl('https://platform.openai.com/api-keys')">OpenAI</a> ·
@@ -439,7 +436,7 @@ body{background:var(--bg);color:var(--ink);font-family:'IBM Plex Mono',monospace
       </div>
       <div class="set-row">
         <label class="set-label">Model override <span>— leave blank for default (gpt-4o-mini or claude-haiku)</span></label>
-        <input class="set-input" id="set-model" type="text" placeholder="e.g. gpt-4o  or  claude-opus-4-6"/>
+        <input class="set-input" id="set-model" type="text" placeholder="e.g. gpt-4o  or  claude-opus-4-6" oninput="autoSaveSettings()"/>
       </div>
     </div>
 
@@ -447,18 +444,15 @@ body{background:var(--bg);color:var(--ink);font-family:'IBM Plex Mono',monospace
       <div class="set-sec-t">☁️ Google Drive <span style="font-size:.6rem;color:var(--ink3);font-weight:400;text-transform:none;letter-spacing:0">— PDF storage + Excel table</span></div>
       <div class="set-row">
         <label class="set-label">API Key <span>— console.cloud.google.com → APIs → Drive API → Credentials → Create API Key</span></label>
-        <input class="set-input" id="set-drive-key" type="password" placeholder="AIza…"/>
+        <input class="set-input" id="set-drive-key" type="password" placeholder="AIza…" onchange="autoSaveSettings();autoTestDrive()"/>
       </div>
       <div class="set-row">
         <label class="set-label">Folder ID <span>— create a shared folder, paste the ID from its URL: drive.google.com/drive/folders/<strong>1BxiMV…</strong></span></label>
-        <input class="set-input" id="set-drive-folder" type="text" placeholder="1BxiMVmTpClLsHnlXFGSBD3HbQBRBNjt…"/>
+        <input class="set-input" id="set-drive-folder" type="text" placeholder="1BxiMVmTpClLsHnlXFGSBD3HbQBRBNjt…" onchange="autoSaveSettings();autoTestDrive()"/>
       </div>
-      <div class="set-row" style="display:flex;gap:.5rem;align-items:center">
-        <button class="sbtn" onclick="testDrive()" style="font-size:.7rem">Test connection</button>
-        <div id="set-drive-status" style="font-size:.7rem;color:var(--ink3)"></div>
-      </div>
+      <div id="set-drive-status" style="font-size:.7rem;color:var(--ink3);padding:.2rem 0"></div>
       <p class="set-hint">
-        The folder must be set to <em>"Anyone with the link can edit"</em>. 
+        The folder must be set to <em>"Anyone with the link can edit"</em>.
         PDFs are uploaded automatically when you save a paper. An Excel table <code>papers.xlsx</code> is kept in sync.
       </p>
     </div>
@@ -467,7 +461,7 @@ body{background:var(--bg);color:var(--ink);font-family:'IBM Plex Mono',monospace
       <div class="set-sec-t">💾 Storage mode</div>
       <div class="set-row">
         <label class="set-label">When saving a paper, use</label>
-        <select class="set-select" id="set-storage-mode">
+        <select class="set-select" id="set-storage-mode" onchange="autoSaveSettings()">
           <option value="local">Local only (default)</option>
           <option value="zotero">Zotero only</option>
           <option value="drive">Google Drive only</option>
@@ -475,8 +469,6 @@ body{background:var(--bg);color:var(--ink);font-family:'IBM Plex Mono',monospace
         </select>
       </div>
     </div>
-
-    <button class="save-btn" onclick="saveSettings()">Save settings</button>
 
     <div style="margin-top:2rem;font-size:.57rem;text-transform:uppercase;letter-spacing:.11em;color:var(--ink3);margin-bottom:.65rem;padding-left:.1rem">Local API Server</div>
 
@@ -731,7 +723,7 @@ function setTab(t){
   });
   if(t==='library')renderLib();
   if(t==='ai')renderAiStatus();
-  if(t==='settings'){loadSettingsUI();loadApiSection();}
+  if(t==='settings'){loadSettingsUI();loadApiSection();autoTestZotero();autoTestDrive();}
 }
 
 // ═══ CATEGORY COMBOBOX ══════════════════════════════════════
@@ -1233,23 +1225,37 @@ function loadSettingsUI(){
   s.className='status-badge '+(settings.apiKey?'status-ok':'status-no');
   s.textContent=settings.apiKey?`\u2713 Key configured (${settings.provider})`:'No key \u2014 AI features disabled';
 }
-function saveSettings(){
-  settings.provider=document.getElementById('set-provider').value;
-  settings.apiKey=document.getElementById('set-apikey').value.trim();
-  settings.model=document.getElementById('set-model').value.trim();
-  settings.username=document.getElementById('set-username').value.trim();
-  settings.zoteroKey=document.getElementById('set-zotero-key').value.trim();
-  const rawGroup = document.getElementById('set-zotero-group').value.trim();
-  const groupUrlMatch = rawGroup.match(/zotero\.org\/groups\/(\d+)/);
-  settings.zoteroGroup = groupUrlMatch ? groupUrlMatch[1] : rawGroup.replace(/[^\d]/g,'') || rawGroup;
-  document.getElementById('set-zotero-group').value = settings.zoteroGroup;
-  settings.driveKey=document.getElementById('set-drive-key').value.trim();
-  settings.driveFolder=document.getElementById('set-drive-folder').value.trim();
-  settings.storageMode=document.getElementById('set-storage-mode').value;
-  saveCfg();loadSettingsUI();renderAiStatus();
-  const hasZotero=!!(settings.zoteroKey&&settings.zoteroGroup);
-  document.getElementById('zotero-sync-btn').style.display=hasZotero?'':'none';
-  toast('Settings saved \u2713');
+function saveSettings(){ autoSaveSettings(); }
+let _saveTimer=null;
+function autoSaveSettings(){
+  clearTimeout(_saveTimer);
+  _saveTimer=setTimeout(()=>{
+    settings.provider=document.getElementById('set-provider').value;
+    settings.apiKey=document.getElementById('set-apikey').value.trim();
+    settings.model=document.getElementById('set-model').value.trim();
+    settings.username=document.getElementById('set-username').value.trim();
+    settings.zoteroKey=document.getElementById('set-zotero-key').value.trim();
+    const rawGroup = document.getElementById('set-zotero-group').value.trim();
+    const groupUrlMatch = rawGroup.match(/zotero\.org\/groups\/(\d+)/);
+    settings.zoteroGroup = groupUrlMatch ? groupUrlMatch[1] : rawGroup.replace(/[^\d]/g,'') || rawGroup;
+    if(groupUrlMatch) document.getElementById('set-zotero-group').value = settings.zoteroGroup;
+    settings.driveKey=document.getElementById('set-drive-key').value.trim();
+    settings.driveFolder=document.getElementById('set-drive-folder').value.trim();
+    settings.storageMode=document.getElementById('set-storage-mode').value;
+    saveCfg();loadSettingsUI();renderAiStatus();
+    const hasZotero=!!(settings.zoteroKey&&settings.zoteroGroup);
+    document.getElementById('zotero-sync-btn').style.display=hasZotero?'':'none';
+  }, 500);
+}
+function autoTestZotero(){
+  const key = document.getElementById('set-zotero-key').value.trim();
+  const group = document.getElementById('set-zotero-group').value.trim();
+  if(key && group) setTimeout(testZotero, 600);
+}
+function autoTestDrive(){
+  const key = document.getElementById('set-drive-key').value.trim();
+  const folder = document.getElementById('set-drive-folder').value.trim();
+  if(key && folder) setTimeout(testDrive, 600);
 }
 
 // ═══ AI ══════════════════════════════════════════════════════
