@@ -1493,13 +1493,16 @@ async function fetchZoteroLibrary(){
   let all = [], start = 0;
   const limit = 100;
   while(true){
-    const data = await zoteroFetch(`/groups/${group}/items?limit=${limit}&start=${start}&sort=dateAdded&direction=desc`);
+    const data = await zoteroFetch(`/groups/${group}/items/top?limit=${limit}&start=${start}&sort=dateAdded&direction=desc`);
     if(!data || !data.length) break;
     all = all.concat(data);
     if(data.length < limit) break;
     start += limit;
   }
-  return all.map(item => {
+  return all.filter(item => {
+    const t = (item.data||{}).itemType||'';
+    return t !== 'attachment' && t !== 'note';
+  }).map(item => {
     const d = item.data || {};
     const arxivId = (d.archiveID||'').replace('arXiv:','')
       || (d.url||'').match(/arxiv\.org\/abs\/(.+)/)?.[1]
@@ -1530,14 +1533,28 @@ async function syncFromZotero(){
   const btn = document.getElementById('zotero-sync-btn');
   btn.disabled = true; btn.textContent = '⟳ Syncing…';
   try {
-    toast('Fetching Zotero library…', 6000);
-    const result = await actionZoteroSync();
-    if(!result.ok){ toast(`Zotero sync failed: ${result.error.slice(0,100)}`, 5000); return; }
-    renderLib();
-    const { added, updated } = result;
+    toast('Fetching Zotero library…', 10000);
+    const remote = await fetchZoteroLibrary();
+    if(!remote.length){ toast('No items found in Zotero group library', 5000); return; }
+    let added = 0, updated = 0;
+    remote.forEach(p => {
+      const id = p.arxivId;
+      if (!id) return;
+      const existing = library.find(x => x.arxivId === id);
+      if (!existing) {
+        library.push({ ...p, note: p.note || '', savedAt: p.savedAt || new Date().toISOString() });
+        added++;
+      } else {
+        if (!existing.zoteroKey && p.zoteroKey) { existing.zoteroKey = p.zoteroKey; updated++; }
+        if (!existing.driveUrl  && p.driveUrl)  { existing.driveUrl  = p.driveUrl;  updated++; }
+      }
+    });
+    saveLib(); renderLib();
     toast(added || updated
       ? `Zotero sync done — ${added} new, ${updated} updated ✓`
       : 'Zotero sync done — library up to date ✓');
+  } catch(e) {
+    toast(`Zotero sync failed: ${(e.message||'Unknown error').slice(0,120)}`, 5000);
   } finally {
     btn.disabled = false; btn.textContent = '⟳ Sync Zotero';
   }
