@@ -1602,6 +1602,30 @@ async function syncFromZotero(){
     toast(added || updated
       ? `Zotero sync done — ${added} new, ${updated} updated ✓`
       : 'Zotero sync done — library up to date ✓');
+
+    // Auto-download PDFs for all papers that have Zotero attachments (Electron only)
+    if(window.electronAPI?.saveZoteroPDF){
+      btn.textContent = '⟳ Fetching PDFs…';
+      let pdfsOk = 0, pdfsSkipped = 0;
+      for(const p of remote){
+        if(!p.zoteroKey) continue;
+        try{
+          const children = await zoteroFetch(`/groups/${settings.zoteroGroup}/items/${p.zoteroKey}/children`);
+          const att = (children||[]).find(c => {
+            const d = c.data||{};
+            return d.itemType==='attachment' && (d.contentType==='application/pdf'||(d.filename||'').endsWith('.pdf'));
+          });
+          if(!att) continue;
+          const fileUrl = `${ZOTERO_BASE}/groups/${settings.zoteroGroup}/items/${att.key}/file`;
+          const filename = (att.data?.filename || `${p.title||p.arxivId}.pdf`).replace(/[/\\:*?"<>|\x00]/g,'_').slice(0,200);
+          const res = await window.electronAPI.saveZoteroPDF(fileUrl, filename, settings.zoteroKey);
+          if(res?.skipped) pdfsSkipped++;
+          else if(res?.ok) pdfsOk++;
+        }catch(_){}
+      }
+      if(pdfsOk || pdfsSkipped)
+        toast(`PDFs: ${pdfsOk} downloaded, ${pdfsSkipped} already on disk — saved to Downloads/Zotero PDFs ✓`);
+    }
   } catch(e) {
     toast(`Zotero sync failed: ${(e.message||'Unknown error').slice(0,120)}`, 5000);
   } finally {
