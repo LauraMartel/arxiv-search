@@ -1490,8 +1490,16 @@ async function removeFromZotero(zoteroKey){
 async function fetchZoteroLibrary(){
   const group = settings.zoteroGroup;
   if(!group) return [];
-  const data = await zoteroFetch(`/groups/${group}/items?itemType=preprint&limit=100&sort=dateAdded&direction=desc`);
-  return (data||[]).map(item => {
+  let all = [], start = 0;
+  const limit = 100;
+  while(true){
+    const data = await zoteroFetch(`/groups/${group}/items?limit=${limit}&start=${start}&sort=dateAdded&direction=desc`);
+    if(!data || !data.length) break;
+    all = all.concat(data);
+    if(data.length < limit) break;
+    start += limit;
+  }
+  return all.map(item => {
     const d = item.data || {};
     const arxivId = (d.archiveID||'').replace('arXiv:','') || (d.url||'').replace('https://arxiv.org/abs/','');
     return {
