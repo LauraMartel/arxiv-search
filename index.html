@@ -691,26 +691,6 @@ async function actionZoteroSave(paper) {
   } catch(e) { return { ok: false, error: e.message }; }
 }
 
-async function actionZoteroSync() {
-  try {
-    const remote = await fetchZoteroLibrary();
-    if (!remote.length) return { ok: true, added: 0, updated: 0 };
-    let added = 0, updated = 0;
-    remote.forEach(p => {
-      if (!p.arxivId) return;
-      const existing = library.find(x => x.arxivId === p.arxivId);
-      if (!existing) {
-        library.push({ ...p, note: p.note || '', savedAt: p.savedAt || new Date().toISOString() });
-        added++;
-      } else {
-        if (!existing.zoteroKey && p.zoteroKey) { existing.zoteroKey = p.zoteroKey; updated++; }
-        if (!existing.driveUrl  && p.driveUrl)  { existing.driveUrl  = p.driveUrl;  updated++; }
-      }
-    });
-    saveLib();
-    return { ok: true, added, updated };
-  } catch(e) { return { ok: false, error: e.message }; }
-}
 
 function actionUpdateNote(arxivId, note) {
   try {
@@ -1130,7 +1110,6 @@ function makeLibCard(p){
       ${p.arxivId&&!p.arxivId.startsWith('zotero-')?`<a class="lb la" href="https://arxiv.org/abs/${esc(p.arxivId)}" target="_blank">arXiv \u2197</a>
       <a class="lb lv" href="https://arxiv.org/pdf/${esc(p.arxivId)}" target="_blank">View PDF</a>
       <button class="lb ld">\u2b07 Save PDF</button>`:''}
-      ${p.doi&&/^10\.\d{4,}/.test(p.doi)?`<a class="lb" href="https://doi.org/${esc(p.doi)}" target="_blank" style="border-color:rgba(30,100,180,.4);color:#1e64b4">DOI \u2197</a>`:''}
       ${p.hasZoteroPdf?`<button class="lb lc-zpdf-btn" style="border-color:rgba(30,100,180,.4);color:#1e64b4">\u{1f4ce} Zotero PDF</button>`:''}
       ${settings.apiKey?`<button class="lb lc-ai-btn" style="border-color:rgba(107,79,160,.4);color:var(--pur)">\u{1f916} Summarize</button>`:''}
     </div>
@@ -1214,8 +1193,15 @@ function makeBib(p){
     p.doi?`  doi           = {${p.doi}},`:null,
     note?`  note          = {${note}},`:null,
   ].filter(Boolean).join('\n');
-  if(p.jref)return`@article{${key},\n${lines}\n  journal       = {${p.jref}},\n  eprint        = {${p.arxivId}},\n  archivePrefix = {arXiv},\n}`;
-  return`@misc{${key},\n${lines}\n  eprint        = {${p.arxivId}},\n  archivePrefix = {arXiv},\n  primaryClass  = {${(p.cats||[''])[0]}},\n  url           = {${p.id}},\n}`;
+  const isArxiv = p.arxivId && !p.arxivId.startsWith('zotero-');
+  const extra = [];
+  if(p.jref || p.journal) extra.push(`  journal       = {${p.jref||p.journal}},`);
+  if(p.volume) extra.push(`  volume        = {${p.volume}},`);
+  if(p.pages) extra.push(`  pages         = {${p.pages}},`);
+  if(isArxiv){ extra.push(`  eprint        = {${p.arxivId}},`); extra.push(`  archivePrefix = {arXiv},`); }
+  if(isArxiv && !p.jref && !p.journal){ extra.push(`  primaryClass  = {${(p.cats||[''])[0]}},`); extra.push(`  url           = {https://arxiv.org/abs/${p.arxivId}},`); }
+  const type = (p.jref || p.journal) ? 'article' : 'misc';
+  return`@${type}{${key},\n${lines}\n${extra.join('\n')}\n}`;
 }
 let bibContent='';
 function openBib(){
