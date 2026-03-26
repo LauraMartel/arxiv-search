@@ -1539,26 +1539,27 @@ async function fetchZoteroPdf(p){
   }
   toast('Fetching PDF from Zotero…', 8000);
   try{
-    // Get child items to find the PDF attachment
     const children = await zoteroFetch(`/groups/${settings.zoteroGroup}/items/${p.zoteroKey}/children`);
     const pdf = (children||[]).find(c => {
       const d = c.data||{};
       return d.itemType === 'attachment' && (d.contentType === 'application/pdf' || (d.filename||'').endsWith('.pdf'));
     });
     if(!pdf){ toast('No PDF attachment found for this paper in Zotero'); return; }
-    // Download the file — Zotero redirects to the actual file URL
     const fileUrl = `${ZOTERO_BASE}/groups/${settings.zoteroGroup}/items/${pdf.key}/file`;
-    const r = await fetch(fileUrl, { headers: { 'Zotero-API-Key': settings.zoteroKey, 'Zotero-API-Version': '3' }, redirect: 'follow' });
-    if(!r.ok) throw new Error(`Zotero file download failed (${r.status})`);
-    const blob = await r.blob();
     const filename = (pdf.data?.filename || `${p.title||'paper'}.pdf`).replace(/[/\\:*?"<>|\x00]/g,'_').slice(0,200);
-    // Trigger browser download
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(a.href);
-    toast('PDF downloaded ✓');
+    if(window.electronAPI?.saveZoteroPDF){
+      const res = await window.electronAPI.saveZoteroPDF(fileUrl, filename, settings.zoteroKey);
+      if(res?.ok) toast('PDF saved ✓');
+      else if(res?.error) toast(`Zotero PDF: ${res.error}`, 5000);
+    } else {
+      // Browser fallback
+      const r = await fetch(fileUrl, { headers: { 'Zotero-API-Key': settings.zoteroKey, 'Zotero-API-Version': '3' }, redirect: 'follow' });
+      if(!r.ok) throw new Error(`Zotero file download failed (${r.status})`);
+      const blob = await r.blob();
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; a.click();
+      URL.revokeObjectURL(a.href);
+      toast('PDF downloaded ✓');
+    }
   }catch(e){ toast(`Zotero PDF: ${(e.message||'Unknown error').slice(0,120)}`, 5000); }
 }
 
