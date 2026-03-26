@@ -1,6 +1,6 @@
 # arXiv Browser
 
-A desktop app for searching, saving, and managing arXiv papers — with Zotero sync, AI summaries, Google Drive storage, and team library sharing via GitHub.
+A desktop app for searching, saving, and managing arXiv papers — with Zotero sync, AI summaries, and Google Drive storage.
 
 ---
 
@@ -45,7 +45,6 @@ The installer is also generated at `dist/arXiv Browser Setup.exe` if you want to
 
 ### Team Collaboration
 - **Zotero sync** — papers saved to your shared group library automatically
-- Each team member keeps their own file (`library-alice.json`, `library-bob.json`)
 
 ### Google Drive Integration (Optional)
 - Upload PDFs to a shared Google Drive folder
@@ -75,10 +74,8 @@ Open the **Settings** tab to configure:
 |---|---|
 | AI Provider | OpenAI or Anthropic |
 | API Key | Your OpenAI or Anthropic key |
-| Username | Your name (used for Zotero and GitHub attribution) |
+| Username | Your name (used for Zotero and Drive attribution) |
 | Storage Mode | Local only, Zotero, Google Drive, or Zotero + Google Drive |
-| GitHub Repo | `owner/repo` format, e.g. `mylab/arxiv-library` |
-| GitHub Token | Personal access token with `repo` scope |
 | Zotero API Key | From [zotero.org/settings/keys](https://www.zotero.org/settings/keys) — enable group read/write |
 | Zotero Group ID | The number in your group URL: `zotero.org/groups/`**`1234567`** |
 | Google Drive API Key | Your Google Drive API key for PDF uploads |
@@ -96,16 +93,6 @@ Open the **Settings** tab to configure:
 5. Set storage mode to **Zotero** or **Zotero + Google Drive**
 
 Papers saved with **+ Library** will automatically appear in your Zotero group library.
-
----
-
-## GitHub Team Sync Setup
-
-1. Create a **private** GitHub repo (e.g. `mylab/arxiv-library`)
-2. Generate a token at [github.com/settings/tokens](https://github.com/settings/tokens)
-   - Classic token, `repo` scope
-3. Add repo and token in Settings, click **Save**
-4. Use **Push** to upload your library, **Pull** to merge colleagues' libraries
 
 ---
 
@@ -134,8 +121,7 @@ PDFs will be uploaded automatically when you save papers. A CSV log tracks all s
 ## Data & Privacy
 
 - Your library is stored locally in your browser's localStorage
-- API keys are stored locally only — **never** sent to GitHub or Zotero
-- Notes are personal and not included in GitHub sync
+- API keys are stored locally only — **never** sent to external services
 - In Electron mode, all arXiv requests go directly — no third-party proxies
 - In browser mode, some requests may be routed through third-party CORS proxies ([corsproxy.io](https://corsproxy.io) and [api.allorigins.win](https://api.allorigins.win)) to work around browser cross-origin restrictions. These proxies see the request URLs but not your API keys or credentials.
 
@@ -147,8 +133,8 @@ This application is provided **as-is** for research and educational purposes onl
 
 **Use at your own risk.** In particular:
 
-- **API keys**: You are responsible for safeguarding your own API keys (OpenAI, Anthropic, Zotero, GitHub, Google Drive). Never share them or commit them to public repositories. The app stores keys locally on your machine, but you are solely responsible for their security.
-- **Third-party services**: This app interacts with external APIs (arXiv, Zotero, GitHub, Google Drive, OpenAI, Anthropic). The author(s) are not responsible for changes, outages, or terms-of-service issues with these services.
+- **API keys**: You are responsible for safeguarding your own API keys (OpenAI, Anthropic, Zotero, Google Drive). Never share them or commit them to public repositories. The app stores keys locally on your machine, but you are solely responsible for their security.
+- **Third-party services**: This app interacts with external APIs (arXiv, Zotero, Google Drive, OpenAI, Anthropic). The author(s) are not responsible for changes, outages, or terms-of-service issues with these services.
 - **No guarantee of correctness**: AI-generated summaries and suggestions may be inaccurate or incomplete. Always verify information against the original papers.
 
 This software is not affiliated with or endorsed by arXiv, Cornell University, Zotero, OpenAI, Anthropic, or any other third party.

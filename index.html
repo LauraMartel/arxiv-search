@@ -134,7 +134,6 @@ body{background:var(--bg);color:var(--ink);font-family:'IBM Plex Mono',monospace
 .lbtn.pri{background:var(--acc);color:#fff;border-color:var(--acc)}
 .lbtn.grn{background:var(--grn);color:#fff;border-color:var(--grn)}
 .fbar{font-size:.63rem;color:var(--grn);padding:.38rem .75rem;background:#f0faf4;border:1px solid #b8d8c8;margin-bottom:.75rem}
-.ghbar{font-size:.63rem;color:var(--ink3);padding:.38rem .75rem;background:#f0f4f8;border:1px solid #c8d8e8;margin-bottom:.75rem}
 .collbar{display:flex;align-items:center;gap:.4rem;margin-bottom:.85rem;flex-wrap:wrap}
 .chip{height:28px;padding:0 .72rem;border:1px solid var(--bdr2);background:none;font-family:'IBM Plex Mono',monospace;font-size:.61rem;cursor:pointer;color:var(--ink2);display:inline-flex;align-items:center;gap:.28rem;transition:all .12s}
 .chip:hover{border-color:var(--ink2)}
@@ -327,14 +326,11 @@ body{background:var(--bg);color:var(--ink);font-family:'IBM Plex Mono',monospace
       <div class="ltitle">My Library</div>
       <div class="lacts">
         <button class="lbtn" id="zotero-sync-btn" style="display:none" onclick="syncFromZotero()">⟳ Sync Zotero</button>
-        <button class="lbtn" id="gh-pull-btn" style="display:none" onclick="ghPull()">⬇ Pull GitHub</button>
-        <button class="lbtn" id="gh-push-btn" style="display:none" onclick="ghPush()">⬆ Push GitHub</button>
         <button class="lbtn" onclick="importJSON()">⬆ Import JSON</button>
         <button class="lbtn grn" onclick="openBib()">𝐿 BibTeX</button>
         <button class="lbtn pri" onclick="exportJSON()">⬇ Export JSON</button>
       </div>
     </div>
-    <div id="gh-bar" style="display:none" class="ghbar"></div>
     <div class="collbar" id="collbar"></div>
     <input class="lsearch" id="lib-search" placeholder="Search title, author, note…" oninput="renderLib()"/>
     <div id="lib-feed"></div>
@@ -389,7 +385,35 @@ body{background:var(--bg);color:var(--ink);font-family:'IBM Plex Mono',monospace
     <div style="font-size:.57rem;text-transform:uppercase;letter-spacing:.11em;color:var(--ink3);margin-bottom:.65rem;padding-left:.1rem">External Services</div>
 
     <div class="set-sec">
-      <div class="set-sec-t">🤖 AI Agent</div>
+      <div class="set-sec-t">👤 Identity</div>
+      <div class="set-row">
+        <label class="set-label">Your name <span>— shown on papers you save (used for Zotero and Drive attribution)</span></label>
+        <input class="set-input" id="set-username" type="text" placeholder="e.g. Alice, Dr. Smith…"/>
+      </div>
+    </div>
+
+    <div class="set-sec">
+      <div class="set-sec-t">📚 Zotero <span style="font-size:.6rem;color:var(--ink3);font-weight:400;text-transform:none;letter-spacing:0">— shared lab reference library</span></div>
+      <div class="set-row">
+        <label class="set-label">API Key <span>— zotero.org → Settings → Feeds/API → Create new private key (Read/Write access to groups)</span></label>
+        <input class="set-input" id="set-zotero-key" type="password" placeholder="your Zotero API key"/>
+      </div>
+      <div class="set-row">
+        <label class="set-label">Group Library ID <span>— visible in URL of your group: zotero.org/groups/<strong>123456</strong>/…</span></label>
+        <input class="set-input" id="set-zotero-group" type="text" placeholder="e.g. 1234567"/>
+      </div>
+      <div class="set-row" style="display:flex;gap:.5rem;align-items:center">
+        <button class="sbtn" onclick="testZotero()" style="font-size:.7rem">Test connection</button>
+        <div id="set-zotero-status" style="font-size:.7rem;color:var(--ink3)"></div>
+      </div>
+      <p class="set-hint">
+        Create a free group at <a href="#" onclick="openUrl('https://www.zotero.org/groups/new')">zotero.org/groups/new</a> ·
+        Get API key at <a href="#" onclick="openUrl('https://www.zotero.org/settings/keys')">zotero.org/settings/keys</a>
+      </p>
+    </div>
+
+    <div class="set-sec">
+      <div class="set-sec-t">🤖 AI Agent <span style="font-size:.6rem;color:var(--ink3);font-weight:400;text-transform:none;letter-spacing:0">— optional</span></div>
       <div class="set-row">
         <label class="set-label">Provider</label>
         <select class="set-select" id="set-provider">
@@ -410,48 +434,6 @@ body{background:var(--bg);color:var(--ink);font-family:'IBM Plex Mono',monospace
         <label class="set-label">Model override <span>— leave blank for default (gpt-4o-mini or claude-haiku)</span></label>
         <input class="set-input" id="set-model" type="text" placeholder="e.g. gpt-4o  or  claude-opus-4-6"/>
       </div>
-    </div>
-
-    <div class="set-sec">
-      <div class="set-sec-t">🔄 GitHub Sync <span style="font-size:.6rem;color:var(--ink3);font-weight:400;text-transform:none;letter-spacing:0">— share your library with colleagues</span></div>
-      <div class="set-row">
-        <label class="set-label">Your name <span>— shown on papers you save, so colleagues know who added them</span></label>
-        <input class="set-input" id="set-username" type="text" placeholder="e.g. Alice, Dr. Smith…"/>
-      </div>
-      <div class="set-row">
-        <label class="set-label">Personal Access Token <span>— github.com → Settings → Developer Settings → Tokens (Classic) → repo scope</span></label>
-        <input class="set-input" id="set-ghtoken" type="password" placeholder="ghp_…"/>
-      </div>
-      <div class="set-row">
-        <label class="set-label">Repository</label>
-        <input class="set-input" id="set-ghrepo" type="text" placeholder="owner/repo-name"/>
-      </div>
-      <div class="set-row">
-        <label class="set-label">Branch</label>
-        <input class="set-input" id="set-ghbranch" type="text" placeholder="main"/>
-        <p class="set-hint">Colleagues with the same settings can Push/Pull to share the library. Merge is automatic (no duplicates).</p>
-      </div>
-      <div id="set-gh-status"></div>
-    </div>
-
-    <div class="set-sec">
-      <div class="set-sec-t">📚 Zotero <span style="font-size:.6rem;color:var(--ink3);font-weight:400;text-transform:none;letter-spacing:0">— shared lab reference library</span></div>
-      <div class="set-row">
-        <label class="set-label">API Key <span>— zotero.org → Settings → Feeds/API → Create new private key (Read/Write access to groups)</span></label>
-        <input class="set-input" id="set-zotero-key" type="password" placeholder="your Zotero API key"/>
-      </div>
-      <div class="set-row">
-        <label class="set-label">Group Library ID <span>— visible in URL of your group: zotero.org/groups/<strong>123456</strong>/…</span></label>
-        <input class="set-input" id="set-zotero-group" type="text" placeholder="e.g. 1234567"/>
-      </div>
-      <div class="set-row" style="display:flex;gap:.5rem;align-items:center">
-        <button class="sbtn" onclick="testZotero()" style="font-size:.7rem">Test connection</button>
-        <div id="set-zotero-status" style="font-size:.7rem;color:var(--ink3)"></div>
-      </div>
-      <p class="set-hint">
-        Create a free group at <a href="#" onclick="openUrl('https://www.zotero.org/groups/new')">zotero.org/groups/new</a> · 
-        Get API key at <a href="#" onclick="openUrl('https://www.zotero.org/settings/keys')">zotero.org/settings/keys</a>
-      </p>
     </div>
 
     <div class="set-sec">
@@ -639,8 +621,7 @@ const CATS=[
 
 // ═══ STATE ══════════════════════════════════════════════════
 let library=[], activeColl=null, chatHistory=[];
-let settings={provider:'openai',apiKey:'',model:'',username:'',ghToken:'',ghRepo:'',ghBranch:'main',zoteroKey:'',zoteroGroup:'',driveKey:'',driveFolder:'',storageMode:'local'};
-let ghSha=null;
+let settings={provider:'openai',apiKey:'',model:'',username:'',zoteroKey:'',zoteroGroup:'',driveKey:'',driveFolder:'',storageMode:'local'};
 
 function loadState(){
   try{library=JSON.parse(localStorage.getItem('ax_lib')||'[]')}catch(_){library=[]}
@@ -1246,94 +1227,12 @@ function dlBib(){
   a.download=`arxiv-${new Date().toISOString().slice(0,10)}.bib`;a.click();toast('Downloaded \u2713');
 }
 
-// ═══ GITHUB ══════════════════════════════════════════════════
-const ghH=()=>({'Authorization':`Bearer ${settings.ghToken}`,'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28','Content-Type':'application/json'});
-
-// Each user pushes to their own file: library-alice.json
-// Pull fetches ALL library-*.json files and merges them
-function ghFilename(){
-  const name=(settings.username||'shared').toLowerCase().replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
-  return`library-${name}.json`;
-}
-
-async function ghPull(){
-  if(!settings.ghToken||!settings.ghRepo){toast('Configure GitHub in Settings');return}
-  if(!/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/.test(settings.ghRepo)){toast('Invalid repo format — use owner/repo');return}
-  const branch=settings.ghBranch||'main';
-  try{
-    toast('Pulling from all colleagues\u2026',8000);
-    // List all files in repo root
-    const r=await fetch(`https://api.github.com/repos/${settings.ghRepo}/contents/?ref=${branch}`,{headers:ghH()});
-    if(!r.ok)throw new Error(`GitHub ${r.status}`);
-    const files=await r.json();
-    const libFiles=files.filter(f=>f.name.startsWith('library-')&&f.name.endsWith('.json'));
-    if(!libFiles.length){toast('No library files found \u2014 Push first');return}
-    let added=0;
-    for(const file of libFiles){
-      // Validate download_url is actually from GitHub (not a hijacked redirect)
-      if(!file.download_url||!file.download_url.startsWith('https://raw.githubusercontent.com/')){continue;}
-      const fr=await fetch(file.download_url);
-      if(!fr.ok)continue;
-      const data=await fr.json();
-      const who=file.name.replace('library-','').replace('.json','');
-      // Store SHA for our own file
-      if(file.name===ghFilename())ghSha=file.sha;
-      (data.library||[]).forEach(p=>{
-        if(!library.find(x=>x.arxivId===p.arxivId)){
-          library.push({...p,savedBy:p.savedBy||who});
-          added++;
-        }
-      });
-    }
-    saveLib();renderLib();
-    toast(`Pulled from ${libFiles.length} colleague(s) \u2014 ${added} new papers`);
-  }catch(e){toast(`GitHub: ${(e.message||'Unknown error').slice(0,120)}`)}
-}
-
-async function ghPush(){
-  if(!settings.ghToken||!settings.ghRepo){toast('Configure GitHub in Settings');return}
-  // Validate repo format (owner/repo) to prevent URL injection
-  if(!/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/.test(settings.ghRepo)){toast('Invalid repo format — use owner/repo');return}
-  const branch=settings.ghBranch||'main';
-  const filename=ghFilename();
-  try{
-    toast('Pushing your library\u2026',6000);
-    // Tag all local papers with our name
-    const myName=settings.username||'shared';
-    library.forEach(p=>{if(!p.savedBy)p.savedBy=myName});
-    // Get current SHA for our file
-    if(!ghSha){
-      const r=await fetch(`https://api.github.com/repos/${settings.ghRepo}/contents/${filename}?ref=${branch}`,{headers:ghH()});
-      if(r.ok){const d=await r.json();ghSha=d.sha}
-    }
-    // Strip any fields that should never leave this machine
-    const PRIV = ['note']; // notes are personal; remove if you want to share them, add fields here
-    const safeLib = library.map(p => {
-      const safe = { ...p };
-      // Never push API keys or tokens — belt-and-suspenders check
-      delete safe._apiKey; delete safe._token; delete safe._secret;
-      return safe;
-    });
-    const payload=btoa(unescape(encodeURIComponent(JSON.stringify({library:safeLib,updatedAt:new Date().toISOString(),author:myName},null,2))));
-    const body={message:`library: ${myName} sync [${new Date().toISOString().slice(0,10)}]`,content:payload,branch};
-    if(ghSha)body.sha=ghSha;
-    const r=await fetch(`https://api.github.com/repos/${settings.ghRepo}/contents/${filename}`,{method:'PUT',headers:ghH(),body:JSON.stringify(body)});
-    if(!r.ok)throw new Error(await r.text());
-    ghSha=(await r.json()).content.sha;
-    saveLib();
-    toast(`Pushed as ${filename} \u2713`);
-  }catch(e){toast(`GitHub: ${(e.message||'Unknown error').slice(0,120)}`)}
-}
-
 // ═══ SETTINGS UI ═════════════════════════════════════════════
 function loadSettingsUI(){
   document.getElementById('set-provider').value=settings.provider||'openai';
   document.getElementById('set-apikey').value=settings.apiKey||'';
   document.getElementById('set-model').value=settings.model||'';
   document.getElementById('set-username').value=settings.username||'';
-  document.getElementById('set-ghtoken').value=settings.ghToken||'';
-  document.getElementById('set-ghrepo').value=settings.ghRepo||'';
-  document.getElementById('set-ghbranch').value=settings.ghBranch||'main';
   document.getElementById('set-zotero-key').value=settings.zoteroKey||'';
   document.getElementById('set-zotero-group').value=settings.zoteroGroup||'';
   document.getElementById('set-drive-key').value=settings.driveKey||'';
@@ -1342,18 +1241,12 @@ function loadSettingsUI(){
   const s=document.getElementById('set-ai-status');
   s.className='status-badge '+(settings.apiKey?'status-ok':'status-no');
   s.textContent=settings.apiKey?`\u2713 Key configured (${settings.provider})`:'No key \u2014 AI features disabled';
-  const g=document.getElementById('set-gh-status');
-  if(settings.ghToken&&settings.ghRepo){g.className='status-badge status-ok';g.textContent=`\u2713 ${settings.ghRepo} / ${settings.ghBranch||'main'}`}
-  else{g.className='status-badge status-no';g.textContent='Not configured'}
 }
 function saveSettings(){
   settings.provider=document.getElementById('set-provider').value;
   settings.apiKey=document.getElementById('set-apikey').value.trim();
   settings.model=document.getElementById('set-model').value.trim();
   settings.username=document.getElementById('set-username').value.trim();
-  settings.ghToken=document.getElementById('set-ghtoken').value.trim();
-  settings.ghRepo=document.getElementById('set-ghrepo').value.trim();
-  settings.ghBranch=document.getElementById('set-ghbranch').value.trim()||'main';
   settings.zoteroKey=document.getElementById('set-zotero-key').value.trim();
   const rawGroup = document.getElementById('set-zotero-group').value.trim();
   const groupUrlMatch = rawGroup.match(/zotero\.org\/groups\/(\d+)/);
@@ -1363,13 +1256,8 @@ function saveSettings(){
   settings.driveFolder=document.getElementById('set-drive-folder').value.trim();
   settings.storageMode=document.getElementById('set-storage-mode').value;
   saveCfg();loadSettingsUI();renderAiStatus();
-  const hasGh=settings.ghToken&&settings.ghRepo;
-  document.getElementById('gh-pull-btn').style.display=hasGh?'':'none';
-  document.getElementById('gh-push-btn').style.display=hasGh?'':'none';
   const hasZotero=!!(settings.zoteroKey&&settings.zoteroGroup);
   document.getElementById('zotero-sync-btn').style.display=hasZotero?'':'none';
-  document.getElementById('gh-bar').style.display=hasGh?'':'none';
-  if(hasGh)document.getElementById('gh-bar').textContent=`\u{1f504} GitHub: ${settings.ghRepo} / ${settings.ghBranch}`;
   toast('Settings saved \u2713');
 }
 
@@ -2152,15 +2040,8 @@ if(window.electronAPI?.onUpdateNoteFromApi){
 
 // ═══ INIT ════════════════════════════════════════════════════
 (function(){
-  const hasGh=settings.ghToken&&settings.ghRepo;
-  document.getElementById('gh-pull-btn').style.display=hasGh?'':'none';
-  document.getElementById('gh-push-btn').style.display=hasGh?'':'none';
   const hasZotero2=!!(settings.zoteroKey&&settings.zoteroGroup);
   document.getElementById('zotero-sync-btn').style.display=hasZotero2?'':'none';
-  if(hasGh){
-    document.getElementById('gh-bar').textContent=`\u{1f504} GitHub: ${settings.ghRepo} / ${settings.ghBranch||'main'}`;
-    document.getElementById('gh-bar').style.display='';
-  }
   // Prime the library cache in main process for the /v1/library endpoint
   syncLibraryToMain();
 })();
