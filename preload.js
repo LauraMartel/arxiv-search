@@ -1,8 +1,9 @@
 const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  savePDF:       (url, filename)                  => ipcRenderer.invoke('save-pdf',        { url, filename }),
-  saveZoteroPDF: (url, filename, zoteroApiKey)    => ipcRenderer.invoke('save-zotero-pdf', { url, filename, zoteroApiKey }),
+  savePDF:          (url, filename)                  => ipcRenderer.invoke('save-pdf',        { url, filename }),
+  saveZoteroPDF:    (url, filename, zoteroApiKey)    => ipcRenderer.invoke('save-zotero-pdf', { url, filename, zoteroApiKey }),
+  uploadPdfToZotero: (args)                          => ipcRenderer.invoke('upload-pdf-to-zotero', args),
   fetchURL: (url)           => ipcRenderer.invoke('fetch-url', { url }),
   openURL:  (url)           => ipcRenderer.invoke('open-url', { url }),
   platform: process.platform,

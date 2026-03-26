@@ -1838,6 +1838,21 @@ async function saveWithIntegrations(p, savebtn){
       entry.zoteroKey = zoteroKey;
       saveLib();
       toast('Zotero ✓');
+      // Upload PDF to Zotero as attachment (Electron only, arXiv papers only)
+      if(window.electronAPI?.uploadPdfToZotero && arxivId && !arxivId.startsWith('zotero-')){
+        toast('Uploading PDF to Zotero…', 6000);
+        const pdfRes = await window.electronAPI.uploadPdfToZotero({
+          arxivId, parentKey: zoteroKey,
+          zoteroApiKey: settings.zoteroKey, zoteroGroup: settings.zoteroGroup
+        });
+        if(pdfRes?.ok){
+          entry.hasZoteroPdf = true;
+          saveLib();
+          toast('PDF uploaded to Zotero ✓');
+        } else {
+          console.warn('Zotero PDF upload failed:', pdfRes?.error);
+        }
+      }
     } else {
       toast(`Zotero failed: ${z.error}`, 5000);
       console.error('Zotero save error:', z.error);
