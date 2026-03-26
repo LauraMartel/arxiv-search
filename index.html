@@ -1487,6 +1487,20 @@ async function removeFromZotero(zoteroKey){
   } catch(e) { console.warn('Zotero delete failed:', e.message); }
 }
 
+function normalizeZoteroDate(d){
+  if(!d) return '';
+  // Already ISO-like: 2015-08-01
+  if(/^\d{4}-\d{2}/.test(d)) return d;
+  // MM/YYYY or MM/DD/YYYY
+  const slash = d.match(/^(\d{1,2})\/(\d{4})$/);
+  if(slash) return `${slash[2]}-${slash[1].padStart(2,'0')}-01`;
+  const slashFull = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(slashFull) return `${slashFull[3]}-${slashFull[1].padStart(2,'0')}-${slashFull[2].padStart(2,'0')}`;
+  // Year only
+  if(/^\d{4}$/.test(d)) return `${d}-01-01`;
+  return d;
+}
+
 async function fetchZoteroLibrary(){
   const group = settings.zoteroGroup;
   if(!group) return [];
@@ -1512,10 +1526,14 @@ async function fetchZoteroLibrary(){
     return {
       arxivId: arxivId || `zotero-${item.key}`,
       title: d.title||'',
-      authors: (d.creators||[]).map(c => ({ name: [c.firstName, c.lastName].filter(Boolean).join(' ') })),
-      published: d.date||'',
+      authors: (d.creators||[]).map(c => [c.firstName, c.lastName].filter(Boolean).join(' ')),
+      published: normalizeZoteroDate(d.date||''),
       summary: d.abstractNote||'',
-      note: d.note||'',
+      doi: d.DOI||'',
+      journal: d.publicationTitle||'',
+      volume: d.volume||'',
+      pages: d.pages||'',
+      note: '',
       savedAt: d.dateAdded||'',
       savedBy: (d.extra||'').match(/Saved by: (.+)/)?.[1]||'',
       zoteroKey: item.key,
