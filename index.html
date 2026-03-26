@@ -1130,20 +1130,28 @@ function makeLibCard(p){
   if(settings.apiKey){
     el.querySelector('.lc-ai-btn')?.addEventListener('click',e=>{e.stopPropagation();aiSummarize(p)});
   }
-  el.querySelector('.lc-rm-btn').addEventListener('click',async e=>{
+  el.querySelector('.lc-rm-btn').addEventListener('click',e=>{
     e.stopPropagation();
-    if(!confirm('Remove from library?')) return;
-    const entry = library.find(x=>x.arxivId===p.arxivId);
-    const result = actionRemovePaper(p.arxivId);
-    if(!result.ok){ toast(`Remove failed: ${result.error}`); return; }
-    renderLib();
-    toast('Removed');
-    // Remove from Zotero if synced
-    if(entry?.zoteroKey && settings.zoteroKey && settings.zoteroGroup){
-      toast('Removing from Zotero…', 3000);
-      removeFromZotero(entry.zoteroKey)
-        .then(()=>toast('Removed from Zotero ✓'))
-        .catch(e=>toast('Zotero remove failed: '+e.message, 4000));
+    const btn=e.target;
+    if(btn.dataset.confirmPending){
+      // Second click = confirm
+      delete btn.dataset.confirmPending;
+      clearTimeout(+btn.dataset.confirmTimer);
+      const entry = library.find(x=>x.arxivId===p.arxivId);
+      const result = actionRemovePaper(p.arxivId);
+      if(!result.ok){ toast(`Remove failed: ${result.error}`); return; }
+      renderLib();
+      toast('Removed');
+      if(entry?.zoteroKey && settings.zoteroKey && settings.zoteroGroup){
+        removeFromZotero(entry.zoteroKey).catch(()=>{});
+      }
+    } else {
+      // First click = ask confirmation
+      btn.dataset.confirmPending='1';
+      btn.textContent='Click again to confirm';
+      btn.style.background='rgba(184,76,30,.1)';
+      const timer=setTimeout(()=>{delete btn.dataset.confirmPending;btn.textContent='\u00d7 Remove';btn.style.background='';},3000);
+      btn.dataset.confirmTimer=String(timer);
     }
   });
   const ta=el.querySelector('.note-area');let nt;
