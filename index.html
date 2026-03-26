@@ -1112,6 +1112,7 @@ function makeLibCard(p){
       <a class="lb lv" href="https://arxiv.org/pdf/${esc(p.arxivId)}" target="_blank">View PDF</a>
       <button class="lb ld">\u2b07 Save PDF</button>`:''}
       ${p.hasZoteroPdf?`<button class="lb lc-zpdf-btn" style="border-color:rgba(30,100,180,.4);color:#1e64b4">\u{1f4ce} Zotero PDF</button>`:''}
+      ${p.zoteroKey&&!p.hasZoteroPdf&&p.arxivId&&!p.arxivId.startsWith('zotero-')?`<button class="lb lc-sendpdf-btn" style="border-color:rgba(204,0,0,.3);color:#c00">\u{1f4e4} Send PDF to Zotero</button>`:''}
       ${settings.apiKey?`<button class="lb lc-ai-btn" style="border-color:rgba(107,79,160,.4);color:var(--pur)">\u{1f916} Summarize</button>`:''}
     </div>
     <div style="display:flex;gap:.3rem;flex-wrap:wrap">
@@ -1125,6 +1126,7 @@ function makeLibCard(p){
   // summarize, remove buttons
   const footBtns=el.querySelectorAll('.lc-foot div button');
   el.querySelector('.lc-zpdf-btn')?.addEventListener('click',e=>{e.stopPropagation();fetchZoteroPdf(p)});
+  el.querySelector('.lc-sendpdf-btn')?.addEventListener('click',async e=>{e.stopPropagation();await sendPdfToZotero(p,e.target)});
   if(settings.apiKey){
     el.querySelector('.lc-ai-btn')?.addEventListener('click',e=>{e.stopPropagation();aiSummarize(p)});
   }
@@ -1575,6 +1577,35 @@ async function fetchZoteroPdf(p){
   }catch(e){ toast(`Zotero PDF: ${(e.message||'Unknown error').slice(0,120)}`, 5000); }
 }
 
+async function sendPdfToZotero(p, btn){
+  if(!p.zoteroKey || !p.arxivId || p.arxivId.startsWith('zotero-')){
+    toast('This paper has no arXiv ID or is not saved to Zotero'); return;
+  }
+  if(!window.electronAPI?.uploadPdfToZotero){
+    toast('PDF upload to Zotero requires the desktop app'); return;
+  }
+  const origText = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Uploading…';
+  try {
+    const res = await window.electronAPI.uploadPdfToZotero({
+      arxivId: p.arxivId, parentKey: p.zoteroKey,
+      zoteroApiKey: settings.zoteroKey, zoteroGroup: settings.zoteroGroup
+    });
+    if(res?.ok){
+      const entry = library.find(x => x.arxivId === p.arxivId);
+      if(entry) entry.hasZoteroPdf = true;
+      saveLib(); renderLib();
+      toast('PDF sent to Zotero ✓');
+    } else {
+      toast(`Failed: ${res?.error||'Unknown error'}`, 5000);
+      btn.disabled = false; btn.textContent = origText;
+    }
+  } catch(e){
+    toast(`Upload failed: ${(e.message||'').slice(0,120)}`, 5000);
+    btn.disabled = false; btn.textContent = origText;
+  }
+}
+
 // ═══ ZOTERO SYNC ══════════════════════════════════════════════
 
 async function syncFromZotero(){
@@ -1838,21 +1869,6 @@ async function saveWithIntegrations(p, savebtn){
       entry.zoteroKey = zoteroKey;
       saveLib();
       toast('Zotero ✓');
-      // Upload PDF to Zotero as attachment (Electron only, arXiv papers only)
-      if(window.electronAPI?.uploadPdfToZotero && arxivId && !arxivId.startsWith('zotero-')){
-        toast('Uploading PDF to Zotero…', 6000);
-        const pdfRes = await window.electronAPI.uploadPdfToZotero({
-          arxivId, parentKey: zoteroKey,
-          zoteroApiKey: settings.zoteroKey, zoteroGroup: settings.zoteroGroup
-        });
-        if(pdfRes?.ok){
-          entry.hasZoteroPdf = true;
-          saveLib();
-          toast('PDF uploaded to Zotero ✓');
-        } else {
-          console.warn('Zotero PDF upload failed:', pdfRes?.error);
-        }
-      }
     } else {
       toast(`Zotero failed: ${z.error}`, 5000);
       console.error('Zotero save error:', z.error);
