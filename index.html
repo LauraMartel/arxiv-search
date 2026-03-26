@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://export.arxiv.org https://arxiv.org https://api.anthropic.com https://api.openai.com https://api.github.com https://api.zotero.org https://www.zotero.org https://www.googleapis.com https://corsproxy.io https://api.allorigins.win; img-src 'self' data:; media-src 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://export.arxiv.org https://arxiv.org https://api.anthropic.com https://api.openai.com https://api.zotero.org https://www.zotero.org https://www.googleapis.com https://corsproxy.io https://api.allorigins.win; img-src 'self' data:; media-src 'none'; object-src 'none'">
 <title>arXiv Browser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
@@ -314,6 +314,13 @@ body{background:var(--bg);color:var(--ink);font-family:'IBM Plex Mono',monospace
   <div class="rbar" id="rbar">Select a category and press Search</div>
   <div id="load-more-bar" style="display:none;padding:.5rem 1.5rem;border-bottom:1px solid var(--bdr)"></div>
   <div class="pbar" id="pbar"><div class="pfill"></div></div>
+  <div id="find-bar" style="padding:.4rem .75rem;gap:.4rem;align-items:center;background:#f0f4f8;border-bottom:1px solid var(--bdr)">
+    <input id="find-input" type="text" placeholder="Find in results…" style="flex:1;padding:.3rem .5rem;border:1px solid var(--bdr);font-size:.7rem"/>
+    <span id="find-count" style="font-size:.65rem;color:var(--ink3);min-width:60px;text-align:center"></span>
+    <button id="find-prev" style="font-size:.7rem;padding:.2rem .5rem;cursor:pointer">▲</button>
+    <button id="find-next" style="font-size:.7rem;padding:.2rem .5rem;cursor:pointer">▼</button>
+    <button id="find-close" style="font-size:.7rem;padding:.2rem .5rem;cursor:pointer">✕</button>
+  </div>
   <div class="feed" id="feed">
     <div class="blank"><div class="blank-i">◎</div><div class="blank-t">Pick a category to start</div><div class="blank-s">Click the Category field, start typing to filter, then press Search.</div></div>
   </div>
@@ -527,10 +534,6 @@ body{background:var(--bg);color:var(--ink);font-family:'IBM Plex Mono',monospace
 
 <!-- MODALS -->
 <!-- modal-coll removed -->
-<div style="display:none">
-    </div>
-  </div>
-</div>
 
 <div class="overlay" id="modal-addcoll" style="display:none" onclick="if(event.target===this)closeModal('modal-addcoll')">
   <div class="modal">
@@ -1121,7 +1124,6 @@ function makeLibCard(p){
   abtn.addEventListener('click',e=>{e.stopPropagation();const o=abs.classList.toggle('open');abtn.textContent=o?'\u25be Abstract':'\u25b8 Abstract'});
   el.querySelector('.lc-body').addEventListener('click',()=>{const o=abs.classList.toggle('open');abtn.textContent=o?'\u25be Abstract':'\u25b8 Abstract'});
   el.querySelector('.lb.ld')?.addEventListener('click',e=>{e.stopPropagation();nativeSavePDF(`https://arxiv.org/pdf/${p.arxivId}`,p.arxivId)});
-  const btns=[...el.querySelectorAll('.lc-foot .lb')].filter(b=>!b.classList.contains('ld')&&!b.tagName==='A');
   // summarize, remove buttons
   const footBtns=el.querySelectorAll('.lc-foot div button');
   el.querySelector('.lc-zpdf-btn')?.addEventListener('click',e=>{e.stopPropagation();fetchZoteroPdf(p)});
@@ -1443,7 +1445,7 @@ function paperToZoteroItem(p){
     repository: 'arXiv',
     archiveID: `arXiv:${arxivId}`,
     DOI: '',
-    tags: (p.tags||[]).map(t => ({ tag: t })),
+    tags: (p.cats||[]).map(t => ({ tag: t })),
     extra: `arXiv: ${arxivId}\nSaved by: ${settings.username||'unknown'}\nSaved at: ${new Date().toISOString().slice(0,10)}`,
   };
 }
@@ -1752,7 +1754,7 @@ async function appendToDriveLog(p, driveUrl, zoteroKey){
     (p.title||'').replace(/"/g,"'"),
     authors.replace(/"/g,"'"),
     (p.published||p.date||'').slice(0,10),
-    p.category||'',
+    (p.cats||[])[0]||'',
     settings.username||'',
     new Date().toISOString().slice(0,10),
     driveUrl||'',
@@ -1805,7 +1807,7 @@ async function saveWithIntegrations(p, savebtn){
   const hasZotero = !!(settings.zoteroKey && settings.zoteroGroup);
   const hasDrive  = !!(settings.driveKey && settings.driveFolder);
   const useZotero = mode === 'zotero' || mode === 'both' || (mode === 'local' && hasZotero);
-  const useDrive  = mode === 'drive'  || mode === 'both' || (mode === 'local' && hasDrive && mode !== 'local');
+  const useDrive  = mode === 'drive'  || mode === 'both';
   // (Drive requires explicit opt-in since it uploads files; Zotero is safe to auto-enable)
 
   let zoteroKey = null;
@@ -1983,8 +1985,8 @@ const _isElectron = !!(window.electronAPI && window.electronAPI.apiKeysList);
 function syncLibraryToMain(){
   if(!window.electronAPI?.syncLibrary) return;
   // Send only safe, non-secret fields
-  const safeLib=library.map(({arxivId,title,authors,published,summary,cats,doi,jref,savedAt,savedBy,zoteroKey,driveUrl,note})=>
-    ({arxivId,title,authors,published,summary,cats,doi,jref,savedAt,savedBy,zoteroKey,driveUrl,note}));
+  const safeLib=library.map(({arxivId,title,authors,published,summary,cats,doi,jref,journal,volume,pages,savedAt,savedBy,zoteroKey,driveUrl,hasZoteroPdf,note})=>
+    ({arxivId,title,authors,published,summary,cats,doi,jref,journal,volume,pages,savedAt,savedBy,zoteroKey,driveUrl,hasZoteroPdf,note}));
   window.electronAPI.syncLibrary(safeLib);
 }
 
