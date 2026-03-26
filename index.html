@@ -1595,33 +1595,24 @@ async function syncFromZotero(){
       ? `Zotero sync done — ${added} new, ${updated} updated ✓`
       : 'Zotero sync done — library up to date ✓');
 
-    // Check for PDF attachments and auto-download
+    // Check which papers have PDF attachments in Zotero
     btn.textContent = '⟳ Checking PDFs…';
-    let pdfsOk = 0, pdfsSkipped = 0;
+    let pdfCount = 0;
     for(const p of remote){
       if(!p.zoteroKey) continue;
       try {
         const children = await zoteroFetch(`/groups/${settings.zoteroGroup}/items/${p.zoteroKey}/children`);
-        const att = (children||[]).find(c => {
+        const hasPdf = (children||[]).some(c => {
           const d = c.data||{};
           return d.itemType==='attachment' && (d.contentType==='application/pdf'||(d.filename||'').endsWith('.pdf'));
         });
-        if(!att) continue;
+        if(!hasPdf) continue;
         const entry = library.find(x => x.arxivId === p.arxivId);
-        if(entry) entry.hasZoteroPdf = true;
-        if(window.electronAPI?.saveZoteroPDF){
-          const fileUrl = `${ZOTERO_BASE}/groups/${settings.zoteroGroup}/items/${att.key}/file`;
-          const filename = (att.data?.filename || `${p.title||p.arxivId}.pdf`).replace(/[/\\:*?"<>|\x00]/g,'_').slice(0,200);
-          const res = await window.electronAPI.saveZoteroPDF(fileUrl, filename, settings.zoteroKey);
-          if(res?.skipped) pdfsSkipped++;
-          else if(res?.ok) pdfsOk++;
-        }
+        if(entry){ entry.hasZoteroPdf = true; pdfCount++; }
       } catch(_) {}
     }
     saveLib(); renderLib();
-    if(pdfsOk || pdfsSkipped){
-      toast(`PDFs: ${pdfsOk} downloaded, ${pdfsSkipped} already on disk — saved to Downloads/Zotero PDFs ✓`);
-    }
+    if(pdfCount) toast(`${pdfCount} paper(s) have PDFs available — use the Zotero PDF button to download`);
   } catch(e) {
     toast(`Zotero sync failed: ${(e.message||'Unknown error').slice(0,120)}`, 5000);
   } finally {
