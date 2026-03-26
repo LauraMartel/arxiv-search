@@ -1130,7 +1130,7 @@ function makeLibCard(p){
       <a class="lb la" href="${esc(p.id)}" target="_blank">arXiv \u2197</a>
       <a class="lb lv" href="${esc(p.pdfLink)}" target="_blank">View PDF</a>
       <button class="lb ld">\u2b07 Save PDF</button>
-      ${p.zoteroKey?`<button class="lb lc-zpdf-btn" style="border-color:rgba(30,100,180,.4);color:#1e64b4">\u{1f4ce} Zotero PDF</button>`:''}
+      ${p.hasZoteroPdf?`<button class="lb lc-zpdf-btn" style="border-color:rgba(30,100,180,.4);color:#1e64b4">\u{1f4ce} Zotero PDF</button>`:''}
       ${settings.apiKey?`<button class="lb lc-ai-btn" style="border-color:rgba(107,79,160,.4);color:var(--pur)">\u{1f916} Summarize</button>`:''}
     </div>
     <div style="display:flex;gap:.3rem;flex-wrap:wrap">
@@ -1603,28 +1603,34 @@ async function syncFromZotero(){
       ? `Zotero sync done — ${added} new, ${updated} updated ✓`
       : 'Zotero sync done — library up to date ✓');
 
-    // Auto-download PDFs for all papers that have Zotero attachments (Electron only)
-    if(window.electronAPI?.saveZoteroPDF){
-      btn.textContent = '⟳ Fetching PDFs…';
-      let pdfsOk = 0, pdfsSkipped = 0;
-      for(const p of remote){
-        if(!p.zoteroKey) continue;
-        try{
-          const children = await zoteroFetch(`/groups/${settings.zoteroGroup}/items/${p.zoteroKey}/children`);
-          const att = (children||[]).find(c => {
-            const d = c.data||{};
-            return d.itemType==='attachment' && (d.contentType==='application/pdf'||(d.filename||'').endsWith('.pdf'));
-          });
-          if(!att) continue;
+    // Check for PDF attachments and auto-download (Electron only)
+    btn.textContent = '⟳ Checking PDFs…';
+    let pdfsOk = 0, pdfsSkipped = 0;
+    for(const p of remote){
+      if(!p.zoteroKey) continue;
+      try{
+        const children = await zoteroFetch(`/groups/${settings.zoteroGroup}/items/${p.zoteroKey}/children`);
+        const att = (children||[]).find(c => {
+          const d = c.data||{};
+          return d.itemType==='attachment' && (d.contentType==='application/pdf'||(d.filename||'').endsWith('.pdf'));
+        });
+        if(!att) continue;
+        // Mark paper as having a PDF
+        const entry = library.find(x => x.arxivId === p.arxivId);
+        if(entry) entry.hasZoteroPdf = true;
+        // Auto-download in Electron
+        if(window.electronAPI?.saveZoteroPDF){
           const fileUrl = `${ZOTERO_BASE}/groups/${settings.zoteroGroup}/items/${att.key}/file`;
           const filename = (att.data?.filename || `${p.title||p.arxivId}.pdf`).replace(/[/\\:*?"<>|\x00]/g,'_').slice(0,200);
           const res = await window.electronAPI.saveZoteroPDF(fileUrl, filename, settings.zoteroKey);
           if(res?.skipped) pdfsSkipped++;
           else if(res?.ok) pdfsOk++;
-        }catch(_){}
-      }
-      if(pdfsOk || pdfsSkipped)
-        toast(`PDFs: ${pdfsOk} downloaded, ${pdfsSkipped} already on disk — saved to Downloads/Zotero PDFs ✓`);
+        }
+      }catch(_){}
+    }
+    saveLib(); renderLib();
+    if(pdfsOk || pdfsSkipped)
+      toast(`PDFs: ${pdfsOk} downloaded, ${pdfsSkipped} already on disk — saved to Downloads/Zotero PDFs ✓`);
     }
   } catch(e) {
     toast(`Zotero sync failed: ${(e.message||'Unknown error').slice(0,120)}`, 5000);
