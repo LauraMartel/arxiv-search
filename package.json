@@ -1,16 +1,52 @@
 {
   "name": "arxiv-browser",
   "version": "2.0.0",
-  "description": "arXiv paper browser \u2014 search, library, BibTeX, AI",
+  "description": "arXiv paper browser — search, library, BibTeX, AI",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "build:win": "electron-packager . \"arXiv Browser\" --platform=win32 --arch=x64 --out=dist --overwrite --icon=assets/icon.ico --ignore=dist --ignore=\".git\" --ignore=node_modules/electron-packager --asar",
-    "build:mac": "electron-packager . \"arXiv Browser\" --platform=darwin --arch=x64 --out=dist --overwrite --icon=assets/icon.icns --ignore=dist --ignore=\".git\" --asar",
-    "build:linux": "electron-packager . \"arXiv Browser\" --platform=linux --arch=x64 --out=dist --overwrite --icon=assets/icon512.png --ignore=dist --ignore=\".git\" --asar"
+    "build:win": "electron-builder --win --x64",
+    "build:mac": "electron-builder --mac --x64",
+    "build:linux": "electron-builder --linux --x64"
+  },
+  "build": {
+    "appId": "com.arxiv.browser",
+    "productName": "arXiv Browser",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "index.html",
+      "preload.js",
+      "assets/**/*",
+      "agent/**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
+      "installerHeaderIcon": "assets/icon.ico"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "assets/icon.icns",
+      "category": "public.app-category.education"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "assets/icon512.png",
+      "category": "Science"
+    }
   },
   "devDependencies": {
     "electron": "^30.0.0",
-    "electron-packager": "^17.1.2"
+    "electron-builder": "^25.1.8"
   }
 }

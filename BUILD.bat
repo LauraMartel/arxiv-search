@@ -16,7 +16,7 @@ exit /b
 :ADMIN
 cd /d "%APPDIR%"
 echo.
-echo  arXiv Browser - Setup and Launch
+echo  arXiv Browser - Setup and Build
 echo  Working in: %APPDIR%
 echo.
 
@@ -34,5 +34,21 @@ if not exist node_modules (
     echo.
 )
 
-echo Launching arXiv Browser...
-call npm start
+:: Check if the app is already built
+if exist "dist\win-unpacked\arXiv Browser.exe" (
+    echo Starting arXiv Browser...
+    start "" "dist\win-unpacked\arXiv Browser.exe"
+    exit /b
+)
+
+echo Building arXiv Browser installer (first time only, this may take a few minutes)...
+call npm run build:win
+if errorlevel 1 ( echo Build failed. & pause & exit /b 1 )
+echo.
+
+echo Build complete! Starting arXiv Browser...
+start "" "dist\win-unpacked\arXiv Browser.exe"
+echo.
+echo You can now pin the app from your taskbar — it will use the correct icon.
+echo The installer is also available at: dist\arXiv Browser Setup.exe
+pause

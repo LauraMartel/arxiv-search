@@ -4,35 +4,21 @@ A desktop app for searching, saving, and managing arXiv papers — with Zotero s
 
 ---
 
-## Running the App
+## Installation
 
 ### Requirements
 
 - [Node.js](https://nodejs.org) (LTS version, e.g. 22.x) — install this first if you don't have it
 
-### First time setup
+### Getting started
 
 1. Download and unzip this folder
-2. Open a terminal:
-   - **Windows**: Press Windows key, type `cmd`, right-click **Command Prompt** → **Run as administrator**
-   - **Mac/Linux**: Open Terminal
-3. Navigate to the app folder:
-   ```
-   cd /path/to/arxiv-build
-   ```
-4. Install dependencies (one time only):
-   ```
-   npm install
-   ```
+2. Double-click **BUILD.bat**
+   - On first run, it installs dependencies and builds the app (may take a few minutes)
+   - On subsequent runs, it launches the app directly
+3. Once the app opens, you can **pin it to your taskbar** — it will show the correct icon
 
-### Launch the app
-
-**Windows**: Double-click **BUILD.bat** — it will install dependencies automatically on first run and launch the app. It requests administrator rights if needed.
-
-**Mac/Linux**: From the same folder in your terminal:
-```
-npm start
-```
+The installer is also generated at `dist/arXiv Browser Setup.exe` if you want to install it permanently.
 
 ---
 
