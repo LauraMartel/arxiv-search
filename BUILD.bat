@@ -27,8 +27,8 @@ if errorlevel 1 (
     pause & exit /b 1
 )
 
-if not exist node_modules (
-    echo Installing dependencies for the first time...
+if not exist "node_modules\electron-builder" (
+    echo Installing dependencies...
     call npm install
     if errorlevel 1 ( echo Installation failed. & pause & exit /b 1 )
     echo.
@@ -42,7 +42,7 @@ if exist "dist\win-unpacked\arXiv Browser.exe" (
 )
 
 echo Building arXiv Browser installer (first time only, this may take a few minutes)...
-call npm run build:win
+call npx electron-builder --win --x64
 if errorlevel 1 ( echo Build failed. & pause & exit /b 1 )
 echo.
 
