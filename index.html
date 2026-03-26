@@ -1584,7 +1584,10 @@ async function syncFromZotero(){
   try {
     toast('Fetching Zotero library…', 10000);
     const remote = await fetchZoteroLibrary();
-    if(!remote.length){ toast('No items found in Zotero group library', 5000); return; }
+    if(!remote.length){
+      toast('No items found in Zotero group library', 5000);
+      return;
+    }
     let added = 0, updated = 0;
     remote.forEach(p => {
       const id = p.arxivId;
@@ -1603,22 +1606,20 @@ async function syncFromZotero(){
       ? `Zotero sync done — ${added} new, ${updated} updated ✓`
       : 'Zotero sync done — library up to date ✓');
 
-    // Check for PDF attachments and auto-download (Electron only)
+    // Check for PDF attachments and auto-download
     btn.textContent = '⟳ Checking PDFs…';
     let pdfsOk = 0, pdfsSkipped = 0;
     for(const p of remote){
       if(!p.zoteroKey) continue;
-      try{
+      try {
         const children = await zoteroFetch(`/groups/${settings.zoteroGroup}/items/${p.zoteroKey}/children`);
         const att = (children||[]).find(c => {
           const d = c.data||{};
           return d.itemType==='attachment' && (d.contentType==='application/pdf'||(d.filename||'').endsWith('.pdf'));
         });
         if(!att) continue;
-        // Mark paper as having a PDF
         const entry = library.find(x => x.arxivId === p.arxivId);
         if(entry) entry.hasZoteroPdf = true;
-        // Auto-download in Electron
         if(window.electronAPI?.saveZoteroPDF){
           const fileUrl = `${ZOTERO_BASE}/groups/${settings.zoteroGroup}/items/${att.key}/file`;
           const filename = (att.data?.filename || `${p.title||p.arxivId}.pdf`).replace(/[/\\:*?"<>|\x00]/g,'_').slice(0,200);
@@ -1626,10 +1627,10 @@ async function syncFromZotero(){
           if(res?.skipped) pdfsSkipped++;
           else if(res?.ok) pdfsOk++;
         }
-      }catch(_){}
+      } catch(_) {}
     }
     saveLib(); renderLib();
-    if(pdfsOk || pdfsSkipped)
+    if(pdfsOk || pdfsSkipped){
       toast(`PDFs: ${pdfsOk} downloaded, ${pdfsSkipped} already on disk — saved to Downloads/Zotero PDFs ✓`);
     }
   } catch(e) {
