@@ -1501,9 +1501,13 @@ async function fetchZoteroLibrary(){
   }
   return all.map(item => {
     const d = item.data || {};
-    const arxivId = (d.archiveID||'').replace('arXiv:','') || (d.url||'').replace('https://arxiv.org/abs/','');
+    const arxivId = (d.archiveID||'').replace('arXiv:','')
+      || (d.url||'').match(/arxiv\.org\/abs\/(.+)/)?.[1]
+      || (d.extra||'').match(/arXiv:\s*(\S+)/)?.[1]
+      || (d.DOI||'').match(/arxiv\.(\S+)/)?.[1]
+      || '';
     return {
-      arxivId,
+      arxivId: arxivId || `zotero-${item.key}`,
       title: d.title||'',
       authors: (d.creators||[]).map(c => ({ name: [c.firstName, c.lastName].filter(Boolean).join(' ') })),
       published: d.date||'',
