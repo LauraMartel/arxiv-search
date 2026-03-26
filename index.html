@@ -407,9 +407,12 @@ body{background:var(--bg);color:var(--ink);font-family:'IBM Plex Mono',monospace
       </div>
       <div class="set-row">
         <label class="set-label">Group Library ID <span>— visible in URL of your group: zotero.org/groups/<strong>123456</strong>/…</span></label>
-        <input class="set-input" id="set-zotero-group" type="text" placeholder="e.g. 1234567" onchange="autoSaveSettings();autoTestZotero()"/>
+        <input class="set-input" id="set-zotero-group" type="text" placeholder="e.g. 1234567" onchange="autoSaveSettings()"/>
       </div>
-      <div id="set-zotero-status" style="font-size:.7rem;color:var(--ink3);padding:.2rem 0"></div>
+      <div class="set-row" style="display:flex;gap:.5rem;align-items:center">
+        <button class="sbtn" onclick="autoSaveSettings();testZotero()" style="font-size:.7rem">Connect</button>
+        <div id="set-zotero-status" style="font-size:.7rem;color:var(--ink3)"></div>
+      </div>
       <p class="set-hint">
         Create a free group at <a href="#" onclick="openUrl('https://www.zotero.org/groups/new')">zotero.org/groups/new</a> ·
         Get API key at <a href="#" onclick="openUrl('https://www.zotero.org/settings/keys')">zotero.org/settings/keys</a>
@@ -448,9 +451,12 @@ body{background:var(--bg);color:var(--ink);font-family:'IBM Plex Mono',monospace
       </div>
       <div class="set-row">
         <label class="set-label">Folder ID <span>— create a shared folder, paste the ID from its URL: drive.google.com/drive/folders/<strong>1BxiMV…</strong></span></label>
-        <input class="set-input" id="set-drive-folder" type="text" placeholder="1BxiMVmTpClLsHnlXFGSBD3HbQBRBNjt…" onchange="autoSaveSettings();autoTestDrive()"/>
+        <input class="set-input" id="set-drive-folder" type="text" placeholder="1BxiMVmTpClLsHnlXFGSBD3HbQBRBNjt…" onchange="autoSaveSettings()"/>
       </div>
-      <div id="set-drive-status" style="font-size:.7rem;color:var(--ink3);padding:.2rem 0"></div>
+      <div class="set-row" style="display:flex;gap:.5rem;align-items:center">
+        <button class="sbtn" onclick="autoSaveSettings();testDrive()" style="font-size:.7rem">Connect</button>
+        <div id="set-drive-status" style="font-size:.7rem;color:var(--ink3)"></div>
+      </div>
       <p class="set-hint">
         The folder must be set to <em>"Anyone with the link can edit"</em>.
         PDFs are uploaded automatically when you save a paper. An Excel table <code>papers.xlsx</code> is kept in sync.

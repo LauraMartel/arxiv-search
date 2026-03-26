@@ -89,7 +89,7 @@ Open the **Settings** tab to configure:
 2. Get an API key at [zotero.org/settings/keys](https://www.zotero.org/settings/keys)
    - Enable **Default Group Permissions: Read/Write**
 3. Paste the Group ID (just the number) into Settings
-4. Click **Test Connection** to verify
+4. Click **Connect** to verify
 5. Set storage mode to **Zotero** or **Zotero + Google Drive**
 
 Papers saved with **+ Library** will automatically appear in your Zotero group library.
