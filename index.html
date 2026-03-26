@@ -1130,6 +1130,7 @@ function makeLibCard(p){
       <a class="lb la" href="${esc(p.id)}" target="_blank">arXiv \u2197</a>
       <a class="lb lv" href="${esc(p.pdfLink)}" target="_blank">View PDF</a>
       <button class="lb ld">\u2b07 Save PDF</button>
+      ${p.zoteroKey?`<button class="lb lc-zpdf-btn" style="border-color:rgba(30,100,180,.4);color:#1e64b4">\u{1f4ce} Zotero PDF</button>`:''}
       ${settings.apiKey?`<button class="lb lc-ai-btn" style="border-color:rgba(107,79,160,.4);color:var(--pur)">\u{1f916} Summarize</button>`:''}
     </div>
     <div style="display:flex;gap:.3rem;flex-wrap:wrap">
@@ -1143,6 +1144,7 @@ function makeLibCard(p){
   const btns=[...el.querySelectorAll('.lc-foot .lb')].filter(b=>!b.classList.contains('ld')&&!b.tagName==='A');
   // summarize, remove buttons
   const footBtns=el.querySelectorAll('.lc-foot div button');
+  el.querySelector('.lc-zpdf-btn')?.addEventListener('click',e=>{e.stopPropagation();fetchZoteroPdf(p)});
   if(settings.apiKey){
     el.querySelector('.lc-ai-btn')?.addEventListener('click',e=>{e.stopPropagation();aiSummarize(p)});
   }
@@ -1540,6 +1542,35 @@ async function fetchZoteroLibrary(){
       driveUrl: (d.extra||'').match(/Drive PDF: (.+)/)?.[1]||'',
     };
   });
+}
+
+async function fetchZoteroPdf(p){
+  if(!p.zoteroKey || !settings.zoteroKey || !settings.zoteroGroup){
+    toast('Zotero not configured or paper has no Zotero key'); return;
+  }
+  toast('Fetching PDF from Zotero…', 8000);
+  try{
+    // Get child items to find the PDF attachment
+    const children = await zoteroFetch(`/groups/${settings.zoteroGroup}/items/${p.zoteroKey}/children`);
+    const pdf = (children||[]).find(c => {
+      const d = c.data||{};
+      return d.itemType === 'attachment' && (d.contentType === 'application/pdf' || (d.filename||'').endsWith('.pdf'));
+    });
+    if(!pdf){ toast('No PDF attachment found for this paper in Zotero'); return; }
+    // Download the file — Zotero redirects to the actual file URL
+    const fileUrl = `${ZOTERO_BASE}/groups/${settings.zoteroGroup}/items/${pdf.key}/file`;
+    const r = await fetch(fileUrl, { headers: { 'Zotero-API-Key': settings.zoteroKey, 'Zotero-API-Version': '3' }, redirect: 'follow' });
+    if(!r.ok) throw new Error(`Zotero file download failed (${r.status})`);
+    const blob = await r.blob();
+    const filename = (pdf.data?.filename || `${p.title||'paper'}.pdf`).replace(/[/\\:*?"<>|\x00]/g,'_').slice(0,200);
+    // Trigger browser download
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast('PDF downloaded ✓');
+  }catch(e){ toast(`Zotero PDF: ${(e.message||'Unknown error').slice(0,120)}`, 5000); }
 }
 
 // ═══ ZOTERO SYNC ══════════════════════════════════════════════
