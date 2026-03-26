@@ -1127,9 +1127,10 @@ function makeLibCard(p){
   <div class="lc-foot">
     <button class="abtn lc-abs-btn">\u25b8 Abstract</button>
     <div style="display:flex;gap:.3rem;flex-wrap:wrap">
-      <a class="lb la" href="${esc(p.id)}" target="_blank">arXiv \u2197</a>
-      <a class="lb lv" href="${esc(p.pdfLink)}" target="_blank">View PDF</a>
-      <button class="lb ld">\u2b07 Save PDF</button>
+      ${p.arxivId&&!p.arxivId.startsWith('zotero-')?`<a class="lb la" href="https://arxiv.org/abs/${esc(p.arxivId)}" target="_blank">arXiv \u2197</a>
+      <a class="lb lv" href="https://arxiv.org/pdf/${esc(p.arxivId)}" target="_blank">View PDF</a>
+      <button class="lb ld">\u2b07 Save PDF</button>`:''}
+      ${p.doi&&/^10\.\d{4,}/.test(p.doi)?`<a class="lb" href="https://doi.org/${esc(p.doi)}" target="_blank" style="border-color:rgba(30,100,180,.4);color:#1e64b4">DOI \u2197</a>`:''}
       ${p.hasZoteroPdf?`<button class="lb lc-zpdf-btn" style="border-color:rgba(30,100,180,.4);color:#1e64b4">\u{1f4ce} Zotero PDF</button>`:''}
       ${settings.apiKey?`<button class="lb lc-ai-btn" style="border-color:rgba(107,79,160,.4);color:var(--pur)">\u{1f916} Summarize</button>`:''}
     </div>
@@ -1140,7 +1141,7 @@ function makeLibCard(p){
   const abs=el.querySelector('.labs'),abtn=el.querySelector('.lc-abs-btn');
   abtn.addEventListener('click',e=>{e.stopPropagation();const o=abs.classList.toggle('open');abtn.textContent=o?'\u25be Abstract':'\u25b8 Abstract'});
   el.querySelector('.lc-body').addEventListener('click',()=>{const o=abs.classList.toggle('open');abtn.textContent=o?'\u25be Abstract':'\u25b8 Abstract'});
-  el.querySelector('.lb.ld').addEventListener('click',e=>{e.stopPropagation();nativeSavePDF(p.pdfLink,p.arxivId)});
+  el.querySelector('.lb.ld')?.addEventListener('click',e=>{e.stopPropagation();nativeSavePDF(`https://arxiv.org/pdf/${p.arxivId}`,p.arxivId)});
   const btns=[...el.querySelectorAll('.lc-foot .lb')].filter(b=>!b.classList.contains('ld')&&!b.tagName==='A');
   // summarize, remove buttons
   const footBtns=el.querySelectorAll('.lc-foot div button');
