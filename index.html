@@ -389,27 +389,23 @@ body{background:var(--bg);color:var(--ink);font-family:'IBM Plex Mono',monospace
     <div style="font-size:.57rem;text-transform:uppercase;letter-spacing:.11em;color:var(--ink3);margin-bottom:.65rem;padding-left:.1rem">External Services</div>
 
     <div class="set-sec">
-      <div class="set-sec-t">🤖 AI Agent</div>
+      <div class="set-sec-t">📚 Zotero <span style="font-size:.6rem;color:var(--ink3);font-weight:400;text-transform:none;letter-spacing:0">— shared lab reference library</span></div>
       <div class="set-row">
-        <label class="set-label">Provider</label>
-        <select class="set-select" id="set-provider">
-          <option value="openai">OpenAI (GPT-4o-mini — fast, affordable)</option>
-          <option value="anthropic">Anthropic (Claude Haiku — fast, affordable)</option>
-        </select>
+        <label class="set-label">API Key <span>— zotero.org → Settings → Feeds/API → Create new private key (Read/Write access to groups)</span></label>
+        <input class="set-input" id="set-zotero-key" type="password" placeholder="your Zotero API key"/>
       </div>
       <div class="set-row">
-        <label class="set-label">API Key <span>— stored on this computer only, sent only to the AI provider</span></label>
-        <input class="set-input" id="set-apikey" type="password" placeholder="sk-… or sk-ant-…"/>
-        <div id="set-ai-status"></div>
-        <p class="set-hint">
-          Get a free-tier key: <a href="#" onclick="openUrl('https://platform.openai.com/api-keys')">OpenAI</a> ·
-          <a href="#" onclick="openUrl('https://console.anthropic.com')">Anthropic</a>
-        </p>
+        <label class="set-label">Group Library ID <span>— visible in URL of your group: zotero.org/groups/<strong>123456</strong>/…</span></label>
+        <input class="set-input" id="set-zotero-group" type="text" placeholder="e.g. 1234567"/>
       </div>
-      <div class="set-row">
-        <label class="set-label">Model override <span>— leave blank for default (gpt-4o-mini or claude-haiku)</span></label>
-        <input class="set-input" id="set-model" type="text" placeholder="e.g. gpt-4o  or  claude-opus-4-6"/>
+      <div class="set-row" style="display:flex;gap:.5rem;align-items:center">
+        <button class="sbtn" onclick="testZotero()" style="font-size:.7rem">Test connection</button>
+        <div id="set-zotero-status" style="font-size:.7rem;color:var(--ink3)"></div>
       </div>
+      <p class="set-hint">
+        Create a free group at <a href="#" onclick="openUrl('https://www.zotero.org/groups/new')">zotero.org/groups/new</a> ·
+        Get API key at <a href="#" onclick="openUrl('https://www.zotero.org/settings/keys')">zotero.org/settings/keys</a>
+      </p>
     </div>
 
     <div class="set-sec">
@@ -435,23 +431,27 @@ body{background:var(--bg);color:var(--ink);font-family:'IBM Plex Mono',monospace
     </div>
 
     <div class="set-sec">
-      <div class="set-sec-t">📚 Zotero <span style="font-size:.6rem;color:var(--ink3);font-weight:400;text-transform:none;letter-spacing:0">— shared lab reference library</span></div>
+      <div class="set-sec-t">🤖 AI Agent <span style="font-size:.6rem;color:var(--ink3);font-weight:400;text-transform:none;letter-spacing:0">— optional</span></div>
       <div class="set-row">
-        <label class="set-label">API Key <span>— zotero.org → Settings → Feeds/API → Create new private key (Read/Write access to groups)</span></label>
-        <input class="set-input" id="set-zotero-key" type="password" placeholder="your Zotero API key"/>
+        <label class="set-label">Provider</label>
+        <select class="set-select" id="set-provider">
+          <option value="openai">OpenAI (GPT-4o-mini — fast, affordable)</option>
+          <option value="anthropic">Anthropic (Claude Haiku — fast, affordable)</option>
+        </select>
       </div>
       <div class="set-row">
-        <label class="set-label">Group Library ID <span>— visible in URL of your group: zotero.org/groups/<strong>123456</strong>/…</span></label>
-        <input class="set-input" id="set-zotero-group" type="text" placeholder="e.g. 1234567"/>
+        <label class="set-label">API Key <span>— stored on this computer only, sent only to the AI provider</span></label>
+        <input class="set-input" id="set-apikey" type="password" placeholder="sk-… or sk-ant-…"/>
+        <div id="set-ai-status"></div>
+        <p class="set-hint">
+          Get a free-tier key: <a href="#" onclick="openUrl('https://platform.openai.com/api-keys')">OpenAI</a> ·
+          <a href="#" onclick="openUrl('https://console.anthropic.com')">Anthropic</a>
+        </p>
       </div>
-      <div class="set-row" style="display:flex;gap:.5rem;align-items:center">
-        <button class="sbtn" onclick="testZotero()" style="font-size:.7rem">Test connection</button>
-        <div id="set-zotero-status" style="font-size:.7rem;color:var(--ink3)"></div>
+      <div class="set-row">
+        <label class="set-label">Model override <span>— leave blank for default (gpt-4o-mini or claude-haiku)</span></label>
+        <input class="set-input" id="set-model" type="text" placeholder="e.g. gpt-4o  or  claude-opus-4-6"/>
       </div>
-      <p class="set-hint">
-        Create a free group at <a href="#" onclick="openUrl('https://www.zotero.org/groups/new')">zotero.org/groups/new</a> · 
-        Get API key at <a href="#" onclick="openUrl('https://www.zotero.org/settings/keys')">zotero.org/settings/keys</a>
-      </p>
     </div>
 
     <div class="set-sec">
