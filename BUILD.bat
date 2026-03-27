@@ -34,14 +34,30 @@ if not exist "node_modules\electron-builder" (
     echo.
 )
 
-:: Check if the app is already built
-if exist "dist\win-unpacked\arXiv Browser.exe" (
+:: Check if rebuild is needed (source newer than build)
+set "NEEDS_BUILD=0"
+if not exist "dist\win-unpacked\arXiv Browser.exe" set "NEEDS_BUILD=1"
+if "%NEEDS_BUILD%"=="0" (
+    for %%F in (index.html main.js preload.js package.json) do (
+        if exist "%%F" (
+            for %%A in ("%%F") do set "SRC_TIME=%%~tA"
+            for %%B in ("dist\win-unpacked\arXiv Browser.exe") do set "BUILD_TIME=%%~tB"
+            powershell -Command "if ((Get-Item '%%F').LastWriteTime -gt (Get-Item 'dist\win-unpacked\arXiv Browser.exe').LastWriteTime) { exit 1 } else { exit 0 }" >nul 2>&1
+            if errorlevel 1 (
+                echo Source file %%F changed — rebuilding...
+                set "NEEDS_BUILD=1"
+            )
+        )
+    )
+)
+
+if "%NEEDS_BUILD%"=="0" (
     echo Starting arXiv Browser...
     start "" "dist\win-unpacked\arXiv Browser.exe"
     exit /b
 )
 
-echo Building arXiv Browser installer (first time only, this may take a few minutes)...
+echo Building arXiv Browser (this may take a few minutes)...
 call npx electron-builder --win --x64
 if errorlevel 1 ( echo Build failed. & pause & exit /b 1 )
 echo.
